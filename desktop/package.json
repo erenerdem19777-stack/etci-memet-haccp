@@ -1,0 +1,37 @@
+{
+  "name": "etci-memet-haccp-masaustu",
+  "productName": "Etci Memet HACCP",
+  "version": "1.0.0",
+  "description": "Etçi Memet HACCP – Windows uygulaması",
+  "author": "Etçi Memet",
+  "main": "main.js",
+  "private": true,
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.etcimemet.haccp.desktop",
+    "productName": "Etci Memet HACCP",
+    "files": [
+      "main.js",
+      "app/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Etçi Memet HACCP",
+      "artifactName": "EtciMemet-HACCP-Kurulum-${version}.${ext}"
+    },
+    "compression": "maximum"
+  }
+}

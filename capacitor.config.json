@@ -1,0 +1,6 @@
+{
+  "appId": "com.etcimemet.haccp",
+  "appName": "Etçi Memet HACCP",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
