@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function uye() { return request.auth != null && exists(/databases/$(database)/documents/uyeler/$(request.auth.uid)); }
+    function yonetici() { return uye() && get(/databases/$(database)/documents/uyeler/$(request.auth.uid)).data.rol == 'yonetici'; }
+    match /uyeler/{u} {
+      allow read: if request.auth != null && (request.auth.uid == u || uye());
+      allow create: if yonetici() || (request.auth != null && request.auth.uid == u && request.resource.data.rol == 'yonetici' && !exists(/databases/$(database)/documents/kurulum/ilk));
+      allow update, delete: if yonetici();
+    }
+    match /kurulum/{d} {
+      allow read: if true;
+      allow create: if request.auth != null && !exists(/databases/$(database)/documents/kurulum/ilk);
+    }
+    match /ayar/{d} {
+      allow read: if uye();
+      allow write: if yonetici();
+    }
+    match /{c}/{d=**} {
+      allow read, write: if uye() && !(c in ['uyeler', 'kurulum', 'ayar']);
+    }
+  }
+}

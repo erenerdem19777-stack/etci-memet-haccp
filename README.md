@@ -12,11 +12,12 @@ Etçi Memet merkez üretim tesisi için HACCP kayıt ve kontrol uygulaması: sı
 
 Tüm sürümler: [Releases](https://github.com/erenerdem19777-stack/etci-memet-haccp/releases)
 
-## Veriler
+## Veriler ve giriş
 
-- Kayıtlar yalnız kullanılan cihazda saklanır; bu depoya veya internete gitmez.
-- Cihazlar arası aktarım: **Kayıt → Veri aktarımı → Gönder** (dosya WhatsApp, e-posta, Drive… ile paylaşılır) ve öteki cihazda **Birleştir**. İki yönlüdür; aynı kayıt iki kez eklenmez.
-- Giriş: Ayarlar → Kullanıcılar bölümünden kullanıcı adı ve şifre tanımlanır; liste aktarım dosyasıyla öteki cihazlara geçer.
+- Kayıtlar Firebase (Cloud Firestore) üzerinden bütün cihazlarda kendiliğinden eşitlenir; internet yokken cihazda tutulur, bağlantı gelince gönderilir. Kayıtlar bu depoya gitmez.
+- İlk açılışta Sorumlu Yönetici hesabı oluşturulur; diğer kullanıcıları yönetici **Ayarlar → Kullanıcılar** bölümünden ekler. Herkes kendi kullanıcı adı ve şifresiyle girer.
+- Erişim kuralları: `firebase/firestore.rules` (yalnız eklenen kullanıcılar okuyup yazabilir; ayarları ve kullanıcıları yalnız yönetici değiştirir).
+- İsteğe bağlı yedek: **Kayıt → Yedek dosya → Gönder / Birleştir**.
 
 ## Geliştirme
 

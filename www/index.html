@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8"><script>window.EM_LOCAL=true</script>
+<meta charset="utf-8"><script>window.EM_LOCAL=true</script><script src="vendor/firebase-app-compat.js"></script><script src="vendor/firebase-auth-compat.js"></script><script src="vendor/firebase-firestore-compat.js"></script><script src="firebase-config.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Etçi Memet HACCP</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -128,7 +128,7 @@ const DF_BOLUM = ['Sıcaklık','Mal kabul','Üretim / CCP','Ekipman','Hijyen','S
 const S = {view:'bugun', day:today(), days:{}, ayar:{}, df:[], ek5:{}, live:false, canEdit:true, uid:null, ad:'', loadNote:''};
 let db = null, downloads = null, userCap = null, assets = null, sampleFn = null, aiOK = false;
 const LOCAL = {};
-const imgUrl = id => LOCAL[id] || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
+const imgUrl = id => LOCAL[id] || (S.cloud ? fotoIste(id) : '') || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
 const thumbs = ids => (ids&&ids.length) ? `<div class="thumbs">${ids.filter(imgUrl).map(id=>`<button class="thb" data-img="${esc(id)}" aria-label="Belge fotoğrafı"><img src="${esc(imgUrl(id))}" alt="Belge fotoğrafı" loading="lazy"></button>`).join('')}</div>` : '';
 async function shrink(file){ try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',0.82)); }catch(e){ return file; } }
 try { S.ad = localStorage.getItem('em_ad') || ''; } catch(e) {}
@@ -174,14 +174,14 @@ function memDB(init, persist){
 const queues = {};
 function serial(key, fn){ const p=(queues[key]||Promise.resolve()).then(fn,fn); queues[key]=p.catch(()=>{}); return p; }
 async function ensureDay(k){
-  if(S.days[k]) return;
+  if(S.cloud||S.days[k]) return;
   const ref=db.doc('gun/'+k); const s=await ref.get();
   if(!s.exists) await ref.set({tarih:k});
 }
 async function putEntry(k, section, entry){
-  return serial('gun/'+k, async()=>{ await ensureDay(k); await db.doc('gun/'+k).update({[section]:{[entry.id]:{...entry,tsU:Date.now()}}}); });
+  return serial('gun/'+k, async()=>{ await ensureDay(k); await db.doc('gun/'+k).update({tarih:k,[section]:{[entry.id]:{...entry,tsU:Date.now()}}}); });
 }
-async function putDay(k, patch){ return serial('gun/'+k, async()=>{ await ensureDay(k); await db.doc('gun/'+k).update(patch); }); }
+async function putDay(k, patch){ return serial('gun/'+k, async()=>{ await ensureDay(k); await db.doc('gun/'+k).update({tarih:k,...patch}); }); }
 function failWrite(e){ console.warn(e); toast(e&&e.code==='invalid_argument'?'Kaydetme yetkiniz yok (Katkıda bulunan olarak paylaşılmalı)':e&&e.code==='quota_exceeded'?'Veri kotası doldu':'Kaydedilemedi, tekrar deneyin'); }
 
 /* ---------- veri türetme ---------- */
@@ -205,9 +205,9 @@ function render(){
   $('#day').value=S.day; $('#who').textContent='Kayıt yapan: '+(S.ad||'— (Ayarlar’dan adınızı seçin)');
   const v = {bugun:vBugun, kayit:vKayit, izle:vIzle, denetim:vDenetim, ayar:vAyar, tip:vTip, plan:vPlan, kf:vKf}[S.view];
   restoreUser(); const tb=$('#tabs'); if(tb) tb.style.display=loginOn()&&!S.user?'none':'';
-  if(loginOn()&&!S.user){ $('#who').textContent='Giriş yapılmadı'; $('#main').innerHTML=vLogin(); bindLogin(); return; }
+  if(loginOn()&&!S.user){ $('#who').textContent='Giriş yapılmadı'; $('#main').innerHTML=S.cloud?vLoginBulut():vLogin(); S.cloud?bindLoginBulut():bindLogin(); return; }
   if(S.user){ $('#who').innerHTML='Kayıt yapan: '+esc(S.ad)+' · <a href="#" id="hdrOut" style="color:inherit">Çıkış</a>'; $('#hdrOut').onclick=e=>{ e.preventDefault(); logout(); }; }
-  const top = (S.mode==='local'?localBanner():'')+(S.mode==='demo'?'<div class="banner"><b>Deneme modu:</b> ortak veritabanına bağlanılamadı; kayıtlar yalnız bu ekranda tutulur ve sayfa kapanınca silinir. Uygulamayı claude.ai bağlantısından, oturum açıkken kullanın.</div>':'')+(S.loadNote?'<div class="banner">'+esc(S.loadNote)+'</div>':'')+(!S.ad?'<div class="banner">Kayıtlarda adınızın görünmesi için <a href="#" data-go="ayar">Ayarlar</a>’dan adınızı seçin.</div>':'');
+  const top = (S.mode==='local'?(S.cloud?bulutBanner():localBanner()):'')+(S.mode==='demo'?'<div class="banner"><b>Deneme modu:</b> ortak veritabanına bağlanılamadı; kayıtlar yalnız bu ekranda tutulur ve sayfa kapanınca silinir. Uygulamayı claude.ai bağlantısından, oturum açıkken kullanın.</div>':'')+(S.loadNote?'<div class="banner">'+esc(S.loadNote)+'</div>':'')+(!S.ad?'<div class="banner">Kayıtlarda adınızın görünmesi için <a href="#" data-go="ayar">Ayarlar</a>’dan adınızı seçin.</div>':'');
   $('#main').innerHTML = top + v();
   bindCommon();
 }
@@ -261,7 +261,7 @@ function vKayit(){
    <b>Uygulamadan PDF alınıp imzalananlar</b><ul style="margin:4px 0 8px;padding-left:20px"><li>HACCP ekip toplantısı tutanağı (aylık)</li><li>Eğitim katılım listesi (yıllık + işe girişte)</li><li>Geri çağırma tatbikatı tutanağı (yıllık)</li><li>Yönetimin gözden geçirmesi tutanağı (yıllık)</li></ul>
    <b>Dışarıdan gelen asıl belgeler</b> <span class="muted">(fotoğrafı kayda da eklenir)</span><ul style="margin:4px 0 0;padding-left:20px"><li>Veteriner sağlık raporu, irsaliye / fatura</li><li>Laboratuvar analiz raporları, su analizi</li><li>Haşere firması servis raporları, biyosidal ruhsat ve MSDS</li><li>Kalibrasyon sertifikaları</li><li>Personel sağlık raporları</li><li>İmzalı HACCP El Kitabı ve Bakanlık denetim tutanakları (Ek-5)</li></ul></details></section>
   <section class="sec"><h2>Kayıt listeleri <small>türe göre · PDF, Excel</small></h2><div class="tiles">${t.map(x=>`<button class="tile ${x[3]?'ccp':''}" data-tip="${x[0]}"><b>${x[1]}</b><span>${x[2]}</span></button>`).join('')}</div></section>
-  <section class="sec"><details class="card" id="xBox" ${S.xOpen||(S.mode==='local'&&localBanner())?'open':''}><summary style="cursor:pointer;font:700 17px 'Barlow Semi Condensed',system-ui,sans-serif">Veri aktarımı – telefon ⇄ PC</summary>
+  <section class="sec"><details class="card" id="xBox" ${S.xOpen||(S.mode==='local'&&localBanner())?'open':''}><summary style="cursor:pointer;font:700 17px 'Barlow Semi Condensed',system-ui,sans-serif">${S.cloud?'Yedek dosya (isteğe bağlı)':'Veri aktarımı – telefon ⇄ PC'}</summary>${S.cloud?`<p class="muted">Kayıtlar buluta kendiliğinden gider; bu bölüm yalnız yedek almak veya eski dosyaları yüklemek içindir.</p>${yerelSayisi()&&!(()=>{try{return localStorage.getItem('em_bulut_yerel')}catch(e){return ''}})()?`<div class="aibox">Bu cihazda bulut öncesinden ${yerelSayisi()} kayıt belgesi var. <button class="sm pri" id="yerelYukle">Buluta yükle</button></div>`:''}`:''}
    ${S.mode==='local'?`<label class="f"><span>Bu cihazın adı (aktarım dosyasında görünür)</span><input id="cihazAd" value="${esc(S.cihaz)}" placeholder="ör. Mal kabul telefonu"></label>`:''}
    <p class="muted"><b>Gönder:</b> bu cihazdaki tüm kayıtları, fotoğrafları, şube/tedarikçi/personel listelerini tek dosyaya koyar${S.mode==='local'&&cap()?' ve telefonun Paylaş menüsünü açar (WhatsApp, Gmail, Drive, Quick Share)':''}. <b>Birleştir:</b> öteki cihazdan gelen dosyayı (birden fazla seçilebilir) bu cihazdaki kayıtlarla birleştirir; aynı kayıt iki kez eklenmez, aynı kaydın yenisi geçerli olur. İki yönlü çalışır: telefon PC’ye, PC de telefona gönderebilir; ikisi de aynı kayıtlara sahip olur.</p>
    <label class="row" style="gap:8px;margin:6px 0"><input type="checkbox" id="xFoto" checked style="width:22px;min-height:22px"> <span>Fotoğrafları da ekle</span></label>
@@ -390,10 +390,10 @@ function sha256(str){ const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x395
 const kNorm = s => String(s||'').trim().toLocaleLowerCase('tr').replace(/\s+/g,'');
 const pwHash = (kadi,pw,salt) => sha256(salt+':'+kNorm(kadi)+':'+pw+':etcimemet');
 function users(){ return ((S.ayar||{}).kullanicilar||[]).filter(u=>u&&u.kadi&&!u.silindi); }
-function loginOn(){ return S.mode==='local' && users().length>0; }
+function loginOn(){ return S.cloud ? true : (S.mode==='local' && users().length>0); }
 function setUser(u,remember){ S.user=u; S.ad=u.ad; S.canEdit=u.rol==='yonetici'; try{ localStorage.setItem('em_ad',u.ad); if(remember) localStorage.setItem('em_oturum',u.kadi); sessionStorage.setItem('em_oturum',u.kadi); }catch(e){} }
-function restoreUser(){ if(!loginOn()||S.user) return; let k=''; try{ k=sessionStorage.getItem('em_oturum')||localStorage.getItem('em_oturum')||''; }catch(e){} const u=users().find(x=>x.kadi===k); if(u) setUser(u,false); }
-function logout(){ S.user=null; S.canEdit=true; try{ localStorage.removeItem('em_oturum'); sessionStorage.removeItem('em_oturum'); }catch(e){} S.view='bugun'; render(); }
+function restoreUser(){ if(S.cloud||!loginOn()||S.user) return; let k=''; try{ k=sessionStorage.getItem('em_oturum')||localStorage.getItem('em_oturum')||''; }catch(e){} const u=users().find(x=>x.kadi===k); if(u) setUser(u,false); }
+function logout(){ if(S.cloud&&AUTH){ AUTH.signOut(); S.view='bugun'; return; } S.user=null; S.canEdit=true; try{ localStorage.removeItem('em_oturum'); sessionStorage.removeItem('em_oturum'); }catch(e){} S.view='bugun'; render(); }
 function vLogin(){ return `<section class="sec" style="max-width:420px;margin:30px auto"><div class="card"><h2 style="margin-top:0">Giriş</h2>
   <label class="f"><span>Kullanıcı adı</span><input id="lgU" autocomplete="username" autocapitalize="none" autocorrect="off"></label>
   <label class="f"><span>Şifre</span><input id="lgP" type="password" autocomplete="current-password"></label>
@@ -425,6 +425,96 @@ function bindUsers(){ const all=()=>[...((S.ayar||{}).kullanicilar||[])];
   document.querySelectorAll('[data-upw]').forEach(b=>b.onclick=()=>{ const k=b.dataset.upw; openInfo('Yeni şifre – '+k,`<label class="f"><span>Yeni şifre (en az 4 karakter)</span><input id="npw" type="password" autocomplete="new-password"></label><button class="pri" id="npwGo" style="margin-top:10px">Kaydet</button>`);
     setTimeout(()=>{ const g=$('#npwGo'); if(g) g.onclick=async()=>{ const p=$('#npw').value; if(p.length<4){ toast('En az 4 karakter'); return; } const s=uid(); await saveUsers(all().map(u=>u.kadi===k?{...u,s,h:pwHash(k,p,s),ts:Date.now()}:u)); closeSheet(); S.uMsg=k+' için şifre değişti.'; render(); }; },0); });
   const lo=$('#lgOut'); if(lo) lo.onclick=logout; }
+
+/* ---------- bulut eşitleme (Firebase) ---------- */
+let FB=null, FS=null, AUTH=null, bulutUnsub=[], uyeUnsub=null, YEREL_INIT={};
+const TRMAP={'ı':'i','ğ':'g','ü':'u','ş':'s','ö':'o','ç':'c','i̇':'i'};
+const kEmail = k => kNorm(k).replace(/[ığüşöç]/g,c=>TRMAP[c]||c).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9._-]/g,'')+'@etcimemet.app';
+const bulutVar = () => !!(window.EM_LOCAL && window.EM_FB && window.EM_FB.apiKey && window.firebase);
+function fbClean(v){ return JSON.parse(JSON.stringify(v===undefined?null:v)); }
+function fbErr(e){ console.warn(e); if(e&&e.code==='permission-denied') toast('Yetki yok: değişiklik buluta yazılamadı'); }
+const BOS={exists:false,id:'',data:()=>undefined,metadata:{fromCache:true}};
+function fbDB(fs){
+  const reg=u=>{ bulutUnsub.push(u); return u; };
+  const D=ref=>({ id:ref.id,
+    get:async()=>{ try{ return await ref.get(); }catch(e){ try{ return await ref.get({source:'cache'}); }catch(e2){ return BOS; } } },
+    set:d=>{ ref.set(fbClean(d)).catch(fbErr); return Promise.resolve(); },
+    update:d=>{ ref.set(fbClean(d),{merge:true}).catch(fbErr); return Promise.resolve(); },
+    delete:()=>{ ref.delete().catch(fbErr); return Promise.resolve(); },
+    onSnapshot:(n,e)=>reg(ref.onSnapshot(n,e)) });
+  const Q=q=>({ orderBy:(f,d)=>Q(q.orderBy(f,d)), limit:n=>Q(q.limit(n)), onSnapshot:(n,e)=>reg(q.onSnapshot(n,e)), doc:id=>D(q.doc(id)) });
+  return { doc:p=>D(fs.doc(p)), collection:c=>Q(fs.collection(c)) };
+}
+async function fotoKucult(blob){ try{ let max=1400,q=0.75; const bmp=await createImageBitmap(blob); for(let i=0;i<4;i++){ const k=Math.min(1,max/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); const out=await new Promise(r=>c.toBlob(r,'image/jpeg',q)); if(out&&out.size<=650000) return out; max=Math.round(max*0.75); q=Math.max(0.5,q-0.08); } }catch(e){} return blob; }
+async function fotoBuluta(id,blob){ if(!FS) return; try{ FS.doc('foto/'+id).set({t:blob.type||'image/jpeg',d:await b64(blob),ts:Date.now()}).catch(fbErr); }catch(e){ console.warn(e); } }
+const FOTO_BEKLE={}; let fotoRT=null;
+async function fotoGetir(id){ let b=null; try{ b=await idbTx('blobs','readonly',st=>st.get(id)); }catch(e){} if(b) return b;
+  if(!FS) return null; let s; try{ s=await FS.doc('foto/'+id).get(); }catch(e){ try{ s=await FS.doc('foto/'+id).get({source:'cache'}); }catch(e2){ return null; } }
+  if(!s||!s.exists) return null; const d=s.data(); b=unb64(d.d,d.t); try{ await idbTx('blobs','readwrite',st=>st.put(b,id)); }catch(e){} return b; }
+function fotoIste(id){ if(!/^[A-Za-z0-9_-]{4,80}$/.test(id)) return ''; if(!FOTO_BEKLE[id]){ FOTO_BEKLE[id]=1; fotoGetir(id).then(b=>{ if(b){ LOCAL[id]=URL.createObjectURL(b); clearTimeout(fotoRT); fotoRT=setTimeout(()=>{ if(!$('#sheet').classList.contains('open')&&!kfTyping()) render(); },250); } }); }
+  return 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='; }
+async function openCloud(){
+  await openLocal(); YEREL_INIT=db._init||{};
+  FB=firebase.initializeApp(window.EM_FB); FS=FB.firestore();
+  try{ await FS.enablePersistence({synchronizeTabs:true}); }catch(e){ console.warn('persistence',e&&e.code); }
+  AUTH=FB.auth(); db=fbDB(FS); S.cloud=true;
+  assets={ upload: async blob=>{ const id='F'+uid()+uid(); const sm=await fotoKucult(blob); try{ await idbTx('blobs','readwrite',st=>st.put(sm,id)); }catch(e){} LOCAL[id]=URL.createObjectURL(sm); fotoBuluta(id,sm); return {id,url:LOCAL[id],sizeBytes:sm.size,contentType:sm.type||'image/jpeg'}; } };
+  addEventListener('online',()=>render()); addEventListener('offline',()=>render());
+  FS.doc('kurulum/ilk').get().then(s=>{ S.ilkKurulum=!s.exists; render(); }).catch(()=>{ S.ilkKurulum=false; });
+  AUTH.onAuthStateChanged(u=>{ S.authHazir=true; if(u) bulutGiris(u); else { bulutDur(); render(); } });
+}
+function bulutDur(){ bulutUnsub.forEach(f=>{ try{ f(); }catch(e){} }); bulutUnsub=[]; if(uyeUnsub){ try{ uyeUnsub(); }catch(e){} uyeUnsub=null; } S.user=null; S.abone=false; S.days={}; S.df=[]; S.ek5={}; S.ayar={}; S.uyeler=[]; S.canEdit=false; }
+function bulutGiris(u){ if(uyeUnsub) uyeUnsub();
+  uyeUnsub=FS.doc('uyeler/'+u.uid).onSnapshot(s=>{
+    if(!s.exists){ if(S.kuruluyor||s.metadata.fromCache) return; S.lgMsg='Bu kullanıcının yetkisi yok veya silinmiş. Yöneticinize başvurun.'; AUTH.signOut(); return; }
+    const p=s.data(); S.user={uid:u.uid,kadi:p.kadi,ad:p.ad,rol:p.rol}; S.ad=p.ad; S.canEdit=p.rol==='yonetici'; try{ localStorage.setItem('em_ad',p.ad); }catch(e){}
+    if(!S.abone){ S.abone=true; abone(); bulutUnsub.push(FS.collection('uyeler').onSnapshot(q=>{ S.uyeler=q.docs.map(d=>d.data()); if(S.view==='ayar'&&!$('#sheet').classList.contains('open')) render(); },()=>{})); }
+    render(); }, e=>{ console.warn(e); if(!S.kuruluyor){ S.lgMsg='Yetki kontrol edilemedi ('+(e.code||'hata')+').'; render(); } }); }
+function authMsg(e){ const c=e&&e.code||''; return /invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)?'Kullanıcı adı veya şifre yanlış.':/network/.test(c)?'İnternet bağlantısı yok. İlk giriş için internet gerekir.':/too-many/.test(c)?'Çok fazla deneme yapıldı; biraz bekleyip tekrar deneyin.':/weak-password/.test(c)?'Şifre en az 6 karakter olmalı.':/email-already/.test(c)?'Bu kullanıcı adı zaten kullanılıyor.':(e&&e.message)||'Giriş yapılamadı.'; }
+function vLoginBulut(){ if(!S.authHazir) return '<section class="sec"><div class="card"><p>Bağlanıyor…</p></div></section>';
+  const ilk=S.ilkKurulum===true;
+  return `<section class="sec" style="max-width:420px;margin:30px auto"><div class="card"><h2 style="margin-top:0">${ilk?'İlk kurulum: yönetici hesabı':'Giriş'}</h2>
+  ${ilk?`<p class="muted">Bu hesap Sorumlu Yönetici hesabıdır. Diğer kullanıcıları sonra Ayarlar → Kullanıcılar’dan siz eklersiniz.</p><label class="f"><span>Ad Soyad</span><input id="lgA"></label>`:''}
+  <label class="f"><span>Kullanıcı adı</span><input id="lgU" autocomplete="username" autocapitalize="none" autocorrect="off"></label>
+  <label class="f"><span>Şifre${ilk?' (en az 6 karakter)':''}</span><input id="lgP" type="password" autocomplete="${ilk?'new-password':'current-password'}"></label>
+  ${ilk?'<label class="f"><span>Şifre (tekrar)</span><input id="lgP2" type="password" autocomplete="new-password"></label>':''}
+  <button class="pri" id="lgGo" style="width:100%;margin-top:10px">${ilk?'Hesabı oluştur':'Giriş yap'}</button>${S.lgMsg?`<div class="result bad" style="margin-top:10px">${esc(S.lgMsg)}</div>`:''}
+  <p class="muted" style="font-size:13px">${ilk?'':'Kullanıcı adı ve şifreyi yöneticiniz verir. Bir kez giriş yapınca internet olmadan da çalışır.'}</p></div></section>`; }
+function bindLoginBulut(){ const b=$('#lgGo'); if(!b) return; const go=async()=>{ const k=kNorm($('#lgU').value), p=$('#lgP').value; if(!k||!p){ S.lgMsg='Kullanıcı adı ve şifre girin.'; render(); return; }
+    b.disabled=true; b.textContent='Bekleyin…';
+    try{ if(S.ilkKurulum===true){ const ad=$('#lgA').value.trim(); if(!ad) throw {message:'Ad Soyad girin.'}; if(p.length<6) throw {code:'weak-password'}; if(p!==$('#lgP2').value) throw {message:'Şifreler aynı değil.'};
+        S.kuruluyor=true; const c=await AUTH.createUserWithEmailAndPassword(kEmail(k),p); const u=c.user.uid; const bt=FS.batch(); bt.set(FS.doc('uyeler/'+u),{uid:u,kadi:k,ad,rol:'yonetici',ts:Date.now()}); bt.set(FS.doc('kurulum/ilk'),{uid:u,ts:Date.now()}); await bt.commit();
+        S.ilkKurulum=false; S.kuruluyor=false; S.lgMsg=''; await saveAyar({personel:[...new Set([...(S.ayar.personel||[]),ad])]}); bulutGiris(c.user); }
+      else { await AUTH.signInWithEmailAndPassword(kEmail(k),p); S.lgMsg=''; } }
+    catch(e){ S.kuruluyor=false; S.lgMsg=authMsg(e); render(); setTimeout(()=>{ const i=$('#lgU'); if(i) i.value=k; },0); } };
+  b.onclick=go; const p=$('#lgP2')||$('#lgP'); if(p) p.onkeydown=e=>{ if(e.key==='Enter') go(); }; }
+function vUsersBulut(){ const L=[...(S.uyeler||[])].sort((a,b)=>a.ad.localeCompare(b.ad,'tr')); const can=S.canEdit;
+  return `<section class="sec"><h2>Kullanıcılar ve şifreler <small>${L.length} · bulut</small></h2><div class="card">
+  ${S.user?`<div class="row" style="justify-content:space-between;align-items:center"><span>Giriş yapan: <b>${esc(S.user.ad)}</b> (${esc(S.user.kadi)} · ${S.user.rol==='yonetici'?'Yönetici':'Personel'})</span><button class="sm" id="lgOut">Çıkış</button></div>`:''}
+  <p class="muted">Eklenen kullanıcı, uygulamayı kendi telefonuna kurup bu kullanıcı adı ve şifreyle girer. Kayıtlar bütün cihazlarda kendiliğinden görünür. Yönetici: Ayarlar, limitler, kullanıcılar ve günlük onay. Personel: kayıt girer.</p>
+  <div class="list">${L.map(u=>`<div class="item"><div><div class="t">${esc(u.ad)}</div><div class="s">${esc(u.kadi)} · ${u.rol==='yonetici'?'Yönetici':'Personel'}</div></div>${can&&S.user&&u.uid!==S.user.uid?`<button class="sm ghost" data-bdel="${esc(u.uid)}">Sil</button>`:''}</div>`).join('')}</div>
+  ${can?`<div class="grid g2" style="margin-top:8px"><label class="f"><span>Ad Soyad</span><input id="uAd" placeholder="Ali Veli"></label><label class="f"><span>Kullanıcı adı</span><input id="uK" autocapitalize="none" placeholder="ali"></label><label class="f"><span>Şifre (en az 6 karakter)</span><input id="uP" type="password" autocomplete="new-password"></label><label class="f"><span>Yetki</span><select id="uR"><option value="personel">Personel</option><option value="yonetici">Yönetici</option></select></label></div><button class="pri" id="uAdd" style="margin-top:8px">Kullanıcı ekle</button><p class="muted" style="font-size:13px">Şifresini unutan personeli silip başka bir kullanıcı adıyla (ör. ali2) yeniden ekleyin; kayıtları silinmez.</p>`:''}
+  <details style="margin-top:10px"><summary style="cursor:pointer">Kendi şifremi değiştir</summary><label class="f"><span>Yeni şifre (en az 6 karakter)</span><input id="myPw" type="password" autocomplete="new-password"></label><button class="sm" id="myPwGo" style="margin-top:6px">Değiştir</button></details>
+  ${S.uMsg?`<div class="aibox">${esc(S.uMsg)}</div>`:''}</div></section>`; }
+function bindUsersBulut(){ const lo=$('#lgOut'); if(lo) lo.onclick=logout;
+  const add=$('#uAdd'); if(add) add.onclick=async()=>{ const ad=$('#uAd').value.trim(), k=kNorm($('#uK').value), p=$('#uP').value, rol=$('#uR').value;
+    if(!ad||!k||p.length<6){ S.uMsg='Ad, kullanıcı adı ve en az 6 karakterli şifre girin.'; render(); return; }
+    if((S.uyeler||[]).some(u=>u.kadi===k)){ S.uMsg='Bu kullanıcı adı zaten var.'; render(); return; }
+    add.disabled=true; add.textContent='Ekleniyor…';
+    try{ const ek=firebase.apps.find(a=>a.name==='ek')||firebase.initializeApp(window.EM_FB,'ek'); const ea=ek.auth(); let c;
+      try{ c=await ea.createUserWithEmailAndPassword(kEmail(k),p); }catch(e){ if(/email-already/.test(e.code||'')){ try{ c=await ea.signInWithEmailAndPassword(kEmail(k),p); }catch(e2){ throw {message:'Bu kullanıcı adı daha önce kullanılmış; başka bir kullanıcı adı seçin.'}; } } else throw e; }
+      const nu=c.user.uid; await ea.signOut(); await FS.doc('uyeler/'+nu).set({uid:nu,kadi:k,ad,rol,ts:Date.now(),ekleyen:S.ad||''});
+      const per=S.ayar.personel||[]; if(!per.includes(ad)) await saveAyar({personel:[...per,ad]});
+      S.uMsg=`${ad} eklendi. Kullanıcı adı: ${k} – şifreyi kendisine iletin.`; }
+    catch(e){ S.uMsg=authMsg(e); } render(); };
+  document.querySelectorAll('[data-bdel]').forEach(b=>b.onclick=async()=>{ const u=(S.uyeler||[]).find(x=>x.uid===b.dataset.bdel); if(!u) return; if(!confirm(u.ad+' silinsin mi? Girdiği kayıtlar silinmez.')) return; try{ await FS.doc('uyeler/'+u.uid).delete(); S.uMsg=u.ad+' silindi; artık giriş yapamaz.'; }catch(e){ S.uMsg='Silinemedi ('+(e.code||'hata')+').'; } render(); });
+  const mp=$('#myPwGo'); if(mp) mp.onclick=async()=>{ const p=$('#myPw').value; if(p.length<6){ toast('En az 6 karakter'); return; } try{ await AUTH.currentUser.updatePassword(p); S.uMsg='Şifreniz değişti.'; }catch(e){ S.uMsg=/recent-login/.test(e.code||'')?'Güvenlik için çıkış yapıp yeniden girin, sonra tekrar deneyin.':authMsg(e); } render(); }; }
+function bulutBanner(){ return navigator.onLine===false?'<div class="banner">İnternet yok: kayıtlar bu cihazda tutuluyor, bağlantı gelince kendiliğinden buluta gider.</div>':''; }
+function yerelSayisi(){ return Object.keys(YEREL_INIT).filter(k=>/^(gun|df)\//.test(k)).length; }
+async function yereliBulutaYukle(){ const docs={...YEREL_INIT}; const blobs={}; const ids=new Set(); for(const [p,d] of Object.entries(docs)){ JSON.stringify(d).replace(/"(L[A-Za-z0-9_-]{6,80})"/g,(m,id)=>{ ids.add(id); return m; }); }
+  for(const id of ids){ try{ const b=await idbTx('blobs','readonly',st=>st.get(id)); if(b) blobs[id]={t:b.type||'image/jpeg',d:await b64(b)}; }catch(e){} }
+  await importData(new File([JSON.stringify({app:'etci-memet-haccp',v:1,cihaz:'bu cihaz (bulut öncesi)',docs,blobs})],'yerel.json',{type:'application/json'}));
+  try{ localStorage.setItem('em_bulut_yerel','1'); }catch(e){} render(); }
 
 /* ---------- dönemsel kontrol formları (HACCP planı) ---------- */
 const AYAD=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -651,7 +741,7 @@ async function tipExport(kind){
 function vAyar(){
   const a=S.ayar, per=a.personel||[], sb=a.subeler||[], td=a.tedarikciler||[], bg=a.burgerler||['Burger 120 g'];
   const listEd=(key,arr,ph)=>`<div class="list">${arr.map((x,i)=>`<div class="item"><div class="t">${esc(typeof x==='string'?x:x.ad+' · '+x.tur+(x.onay?' · '+x.onay:''))}</div>${S.canEdit?`<button class="sm ghost" data-del="${key}|${i}">Sil</button>`:''}</div>`).join('')||'<p class="muted">Liste boş.</p>'}</div>${S.canEdit?`<div class="row" style="margin-top:8px"><input id="add_${key}" placeholder="${ph}" style="flex:1 1 180px">${key==='tedarikciler'?'<select id="tur_ted" style="flex:0 0 130px"><option>Karkas</option><option>Fason</option><option>Diğer</option></select><input id="onay_ted" placeholder="Onay no" style="flex:0 1 140px">':''}<button class="sm pri" data-add="${key}">Ekle</button></div>`:''}`;
-  return (S.user?'':`<section class="sec"><h2>Ben</h2><div class="card"><label class="f"><span>Kayıtlarda görünecek adım</span><select id="meSel"><option value="">— seçin —</option>${per.map(p=>`<option ${p===S.ad?'selected':''}>${esc(p)}</option>`).join('')}</select></label><p class="muted">Ad bu cihazda hatırlanır. Listede yoksa aşağıdan ekleyin.</p></div></section>`)+vUsers()+`
+  return (S.user?'':`<section class="sec"><h2>Ben</h2><div class="card"><label class="f"><span>Kayıtlarda görünecek adım</span><select id="meSel"><option value="">— seçin —</option>${per.map(p=>`<option ${p===S.ad?'selected':''}>${esc(p)}</option>`).join('')}</select></label><p class="muted">Ad bu cihazda hatırlanır. Listede yoksa aşağıdan ekleyin.</p></div></section>`)+(S.cloud?vUsersBulut():vUsers())+`
   <section class="sec"><h2>Personel</h2><div class="card">${listEd('personel',per,'Ad Soyad')}</div></section>
   <section class="sec"><h2>Şubeler <small>${sb.length}</small></h2><div class="card">${listEd('subeler',sb,'Şube adı')}</div></section>
   <section class="sec"><h2>Tedarikçiler</h2><div class="card">${listEd('tedarikciler',td,'Firma adı')}</div></section>
@@ -885,9 +975,10 @@ function bindCommon(){
     const mr=(y,m)=>{ const last=new Date(y,m,0).getDate(); const a=y+'-'+String(m).padStart(2,'0'); return [a+'-01',a+'-'+String(last).padStart(2,'0'),AY[m-1]+' '+y+' aylık rapor']; };
     let y=+k.slice(0,4), m=+k.slice(5,7); const range=v==='gun'?[k,k,trDate(k)+' günlük rapor']:v==='ay'?mr(y,m):(m===1?mr(y-1,12):mr(y,m-1));
     doPdf(range, !!($('#xFoto')||{}).checked, 'xPdfMsg'); };
+  const yy=$('#yerelYukle'); if(yy) yy.onclick=()=>{ yy.disabled=true; S.xOpen=true; yereliBulutaYukle(); };
   const xi=$('#xIn'); if(xi) xi.onchange=async()=>{ const fs=[...xi.files]; if(!fs.length) return; S.xOpen=true; const msgs=[]; for(const f of fs){ await importData(f); msgs.push(S.xMsg); } if(fs.length>1){ S.xMsg=msgs.join(' · '); render(); } };
   const ca=$('#cihazAd'); if(ca) ca.onchange=()=>{ S.cihaz=ca.value.trim(); try{localStorage.setItem('em_cihaz',S.cihaz);}catch(e){} };
-  bindUsers(); const ms=$('#meSel'); if(ms) ms.onchange=()=>{ S.ad=ms.value; try{localStorage.setItem('em_ad',S.ad);}catch(e){} render(); };
+  S.cloud?bindUsersBulut():bindUsers(); const ms=$('#meSel'); if(ms) ms.onchange=()=>{ S.ad=ms.value; try{localStorage.setItem('em_ad',S.ad);}catch(e){} render(); };
   m.querySelectorAll('[data-add]').forEach(b=>b.onclick=async()=>{ const key=b.dataset.add; const inp=$('#add_'+key); const v=inp.value.trim(); if(!v) return; const arr=[...(S.ayar[key]||(key==='burgerler'?['Burger 120 g']:[]))];
     arr.push(key==='tedarikciler'?{ad:v,tur:$('#tur_ted').value,onay:$('#onay_ted').value.trim()}:v); await saveAyar({[key]:arr}); });
   m.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{ const [key,i]=b.dataset.del.split('|'); const arr=[...(S.ayar[key]||[])]; arr.splice(+i,1); await saveAyar({[key]:arr}); });
@@ -930,7 +1021,7 @@ async function openLocal(){
   const init={};
   await new Promise((res,rej)=>{ const tx=IDB.transaction('docs','readonly'); const st=tx.objectStore('docs'); const c=st.openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ init[cur.key]=cur.value; cur.continue(); } else res(); }; c.onerror=()=>rej(c.error); });
   await new Promise((res,rej)=>{ const tx=IDB.transaction('blobs','readonly'); const c=tx.objectStore('blobs').openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ LOCAL[cur.key]=URL.createObjectURL(cur.value); cur.continue(); } else res(); }; c.onerror=()=>rej(c.error); });
-  db = memDB(init, { put:(p,v)=>idbTx('docs','readwrite',st=>st.put(JSON.parse(JSON.stringify(v)),p)), del:p=>idbTx('docs','readwrite',st=>st.delete(p)) });
+  db = memDB(init, { put:(p,v)=>idbTx('docs','readwrite',st=>st.put(JSON.parse(JSON.stringify(v)),p)), del:p=>idbTx('docs','readwrite',st=>st.delete(p)) }); db._init=init;
   assets = { upload: async (blob) => { const id='L'+uid()+uid(); await idbTx('blobs','readwrite',st=>st.put(blob,id)); LOCAL[id]=URL.createObjectURL(blob); return {id, url:LOCAL[id], sizeBytes:blob.size, contentType:blob.type||'image/jpeg'}; } };
   try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
 }
@@ -942,7 +1033,7 @@ function localBanner(){
 const b64 = blob => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=()=>rej(r.error); r.readAsDataURL(blob); });
 const unb64 = (s,type) => { const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Blob([u],{type:type||'image/jpeg'}); };
 function allFotoIds(){ const ids=new Set(); const add=a=>(a||[]).forEach(x=>ids.add(x)); for(const k in S.days){ const d=S.days[k]; for(const sec of ['sicaklik','kabul','uretim','ekipman','sevkiyat','dis','per']) for(const e of Object.values(d[sec]||{})) add(e.foto); } S.df.forEach(x=>add(x.foto)); return [...ids]; }
-async function getBlob(id){ if(S.mode==='local'){ return await idbTx('blobs','readonly',st=>st.get(id)); } const r=await fetch(imgUrl(id)); if(!r.ok) throw new Error('blob'); return await r.blob(); }
+async function getBlob(id){ if(S.mode==='local'){ const b=await idbTx('blobs','readonly',st=>st.get(id)); return b||(S.cloud?await fotoGetir(id):b); } const r=await fetch(imgUrl(id)); if(!r.ok) throw new Error('blob'); return await r.blob(); }
 async function exportData(){
   const withFoto=!!($('#xFoto')||{}).checked; S.xMsg='Dosya hazırlanıyor…'; render();
   const docs={}; for(const k in S.days) docs['gun/'+k]=S.days[k]; S.df.forEach(x=>{ if(x.id) docs['df/'+x.id]=x; }); docs['ayar/genel']=S.ayar||{}; docs['ek5/guncel']=S.ek5||{};
@@ -966,7 +1057,7 @@ async function importData(file){
   if(!j||j.app!=='etci-memet-haccp'||!j.docs){ S.xMsg='Bu bir Etçi Memet HACCP aktarım dosyası değil.'; render(); return; }
   const idMap={}; let fOk=0, fNo=0;
   for(const [id,b] of Object.entries(j.blobs||{})){ if(!/^[A-Za-z0-9_-]{4,80}$/.test(id)||!b||typeof b.d!=='string') continue;
-    if(S.mode==='local'){ const ex=await idbTx('blobs','readonly',st=>st.get(id)); if(!ex){ const bl=unb64(b.d,b.t); await idbTx('blobs','readwrite',st=>st.put(bl,id)); LOCAL[id]=URL.createObjectURL(bl); fOk++; } idMap[id]=id; }
+    if(S.mode==='local'){ const ex=await idbTx('blobs','readonly',st=>st.get(id)); if(!ex){ const bl=unb64(b.d,b.t); await idbTx('blobs','readwrite',st=>st.put(bl,id)); LOCAL[id]=URL.createObjectURL(bl); fOk++; if(S.cloud) fotoBuluta(id,bl); } idMap[id]=id; }
     else if(assets){ if(S.imported&&S.imported[id]){ idMap[id]=S.imported[id]; continue; } try{ const r=await assets.upload(unb64(b.d,b.t),{type:/^image\/(jpeg|png|webp|gif)$/.test(b.t)?b.t:'image/jpeg'}); idMap[id]=r.id; LOCAL[r.id]=r.url; (S.imported=S.imported||{})[id]=r.id; fOk++; }catch(e){ fNo++; } }
     else fNo++; }
   const fix = e => e && Array.isArray(e.foto) ? {...e, foto:e.foto.map(x=>idMap[x]||x)} : e;
@@ -1100,16 +1191,19 @@ async function start(){
   if(sampleFn){ try{ const lm=await sampleFn.limits(); aiOK=!!(lm&&lm.images); }catch(e){ aiOK=false; } }
   if(userCap){ try{ S.uid=await userCap.id(); }catch(e){} try{ const ce=await userCap.canEdit(); const own=await userCap.isOwner(); S.canEdit=!!(ce||own); }catch(e){} }
   if(realDb){ db=realDb; S.mode='claude'; }
+  else if(!window.claude&&bulutVar()){ try{ await openCloud(); S.mode='local'; S.live=true; render(); return; }catch(e){ console.warn('bulut',e); S.cloud=false; FS=null; try{ await openLocal(); }catch(e2){} S.mode='local'; } }
   else if(!window.claude){ try{ await openLocal(); S.mode='local'; }catch(e){ console.warn(e); db=memDB(); S.mode='demo'; } }
   else { db=memDB(); S.mode='demo'; }
   S.live=S.mode!=='demo';
+  abone(); render();
+}
+function abone(){
   const timer=setTimeout(()=>{ S.loadNote='Veriye henüz ulaşılamadı; bağlantıyı kontrol edin. Gösterilenler eksik olabilir.'; render(); },10000);
   const done=()=>{ clearTimeout(timer); if(S.loadNote){ S.loadNote=''; } };
   db.collection('gun').orderBy('tarih','desc').limit(400).onSnapshot(s=>{ const o={}; s.docs.forEach(d=>o[d.id]=d.data()); S.days=o; if(!s.metadata.fromCache) done(); if(!$('#sheet').classList.contains('open')&&!kfTyping()) render(); }, e=>{ done(); S.loadNote='Kayıtlar okunamadı ('+e.code+').'; render(); });
   db.doc('ayar/genel').onSnapshot(s=>{ S.ayar=s.exists?s.data():{}; if(!$('#sheet').classList.contains('open')) render(); }, ()=>{});
   db.collection('df').orderBy('ts','desc').limit(300).onSnapshot(s=>{ S.df=s.docs.map(d=>d.data()); if(!$('#sheet').classList.contains('open')) render(); }, ()=>{});
   db.doc('ek5/guncel').onSnapshot(s=>{ S.ek5=s.exists?s.data():{}; if(S.view==='denetim'&&!$('#sheet').classList.contains('open')) render(); }, ()=>{});
-  render();
 }
 function kfTyping(){ const a=document.activeElement; if(S.view==='kf'&&a&&a.matches&&a.matches('#main input:not([type=date])')){ a.addEventListener('blur',()=>setTimeout(()=>{ if(!kfTyping()) render(); },50),{once:true}); return true; } return false; }
 render(); Promise.resolve().then(start).catch(e=>console.warn(e)).finally(()=>setTimeout(gelenDinle,300));
