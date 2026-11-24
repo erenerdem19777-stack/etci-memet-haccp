@@ -35,7 +35,7 @@ header.top small{opacity:.85;font-size:13px}
 .grid{display:grid;gap:10px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .kpi{display:flex;flex-direction:column;gap:2px}.kpi b{font:700 28px "Barlow Semi Condensed",system-ui,sans-serif}.kpi span{font-size:13px;color:var(--mut)}
 .kpi.bad b{color:var(--red)}.kpi.good b{color:var(--ok)}
-.tgrid{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:6px;align-items:stretch}
+.tgrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:6px;align-items:stretch}
 .tgrid .h{font-size:12px;color:var(--mut);text-align:center;align-self:end}
 .tgrid .n{font-size:14px;font-weight:600;align-self:center;line-height:1.2}
 .tgrid .n small{display:block;font-weight:400;color:var(--mut);font-size:12px}
@@ -57,8 +57,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .tile{text-align:left;padding:14px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;border-radius:14px}
 .tile b{font:700 18px "Barlow Semi Condensed",system-ui,sans-serif}.tile span{font:400 13px Barlow,system-ui,sans-serif;color:var(--mut)}
 .tile.ccp{border-left:6px solid var(--red)}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom);z-index:5}
-nav.tabs button{border:0;border-radius:0;background:transparent;min-height:58px;font:600 13px Barlow,system-ui,sans-serif;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:grid;grid-auto-flow:column;grid-auto-columns:1fr;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.tabs button{border:0;border-radius:0;background:transparent;min-height:58px;font:600 12px Barlow,system-ui,sans-serif;color:var(--mut);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 nav.tabs button svg{width:22px;height:22px}
 nav.tabs button.on{color:var(--red)}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:10;align-items:flex-end;justify-content:center}
@@ -129,7 +129,7 @@ const DF_BOLUM = ['Sıcaklık','Mal kabul','Üretim / CCP','Ekipman','Hijyen','S
 const S = {view:'bugun', day:today(), days:{}, ayar:{}, df:[], ek5:{}, live:false, canEdit:true, uid:null, ad:'', loadNote:''};
 let db = null, downloads = null, userCap = null, assets = null, sampleFn = null, aiOK = false;
 const LOCAL = {};
-const SURUM = '24.11.2026 15:43';
+const SURUM = '24.11.2026 16:25';
 const imgUrl = id => LOCAL[id] || (S.cloud ? fotoIste(id) : '') || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
 const thumbs = ids => (ids&&ids.length) ? `<div class="thumbs">${ids.filter(imgUrl).map(id=>`<button class="thb" data-img="${esc(id)}" aria-label="Belge fotoğrafı"><img src="${esc(imgUrl(id))}" alt="Belge fotoğrafı" loading="lazy"></button>`).join('')}</div>` : '';
 async function shrink(file){ try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',0.82)); }catch(e){ return file; } }
