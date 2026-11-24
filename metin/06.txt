@@ -1,0 +1,1 @@
+Gün sabah ölçümlerle başlar. Altı noktanın sıcaklığı tek dokunuşla girilir; uygulama limiti kendisi kontrol eder. Limit dışı bir değerde düzeltici faaliyet yazılmadan kayıt kapanmaz. Hijyen ve ekipman kontrolleri de aynı ekranda yapılır.

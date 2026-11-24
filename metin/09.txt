@@ -1,0 +1,1 @@
+Kontrol formları Ha Se Se Pe planındaki sıklığa göre gelir: günlük, haftalık, aylık ve yıllık. Tarihleri uygulama hesaplar; günü gelen kontrol ekrana düşer. Sorular işaretlenir, cevaplar elektronik olarak saklanır. İmza gereken tutanaklar ise P D F olarak alınıp dosyalanır.

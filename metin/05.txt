@@ -1,0 +1,1 @@
+Bütün bu sistem tek bir uygulamada çalışır. Telefonda, bilgisayarda ve tarayıcıda aynı kayıtlar görünür. Herkes kendi kullanıcı adı ve şifresiyle girer; girilen her kayıt birkaç saniyede bütün cihazlara yansır. İnternet olmasa da kayıt girilir, bağlantı gelince buluta gider.

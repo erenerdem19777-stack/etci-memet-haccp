@@ -1,0 +1,47 @@
+name: Tanıtım videosu – seslendirme
+
+# Yalnız "tanitim" dalında çalışır; uygulama derlemesini etkilemez.
+on:
+  push:
+    branches: [tanitim]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Piper TTS kur
+        run: pip install piper-tts==1.2.0
+      - name: Türkçe sesleri indir (rhasspy/piper-voices, MIT)
+        run: |
+          mkdir -p model
+          for v in fahrettin dfki fettah; do
+            b=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/tr/tr_TR/$v/medium/tr_TR-$v-medium
+            curl -fsSL -o model/$v.onnx "$b.onnx"
+            curl -fsSL -o model/$v.onnx.json "$b.onnx.json"
+          done
+          ls -la model
+      - name: Seslendir
+        run: |
+          for v in fahrettin dfki fettah; do
+            mkdir -p out/$v
+            for f in metin/*.txt; do
+              n=$(basename "$f" .txt)
+              piper --model model/$v.onnx --output_file out/$v/$n.wav --length_scale 1.08 --sentence_silence 0.35 < "$f"
+            done
+          done
+          ls -laR out
+      - name: tanitim-ses dalına koy
+        run: |
+          cd out
+          git init -q -b tanitim-ses
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -q -m "Seslendirme ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:tanitim-ses

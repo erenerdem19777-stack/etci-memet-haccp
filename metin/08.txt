@@ -1,0 +1,1 @@
+Her üretim partisine bir LOT numarası verilir. Ertesi gün ürün merkez sıcaklığı ölçülür, sevkiyatlar şubelere göre kaydedilir. İzlenebilirlik ekranında bir LOT yazıldığında, hangi karkastan üretildiği ve hangi şubelere gittiği saniyeler içinde görünür.
