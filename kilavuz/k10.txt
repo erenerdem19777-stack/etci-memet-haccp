@@ -1,0 +1,1 @@
+Kayıt sekmesinde günlük, haftalık, aylık ve yıllık kontrol formları bulunur. Tarihleri uygulama hesaplar. Form açılır, her soru uygun, uygun değil veya uygulanamaz olarak işaretlenir. Cevaplar kendiliğinden kaydedilir.

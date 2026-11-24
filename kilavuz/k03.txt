@@ -1,0 +1,1 @@
+Personel, uygulamayı kendi telefonuna kurar ve kendi kullanıcı adı ile şifresiyle giriş yapar. Üst satırda kaydı kimin girdiği görünür. Yeşil nokta, telefonun buluta bağlı olduğunu gösterir.

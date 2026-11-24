@@ -1,0 +1,1 @@
+Sevkiyatta şube ve LOT seçilir, araç ve çıkış sıcaklıkları girilir. Şubeye teslimde ölçülen sıcaklık da aynı kayda eklenir. Böylece soğuk zincir uçtan uca belgelenir.

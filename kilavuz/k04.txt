@@ -1,0 +1,1 @@
+Gün, sabah sıcaklık ölçümleriyle başlar. Ölçüm noktasına dokunulur, değer yazılır. Eksi değerler için yanındaki artı eksi düğmesi kullanılır. Uygulama limiti kendisi kontrol eder. Limit dışı bir değerde, ne yapıldığı yazılmadan kayıt kapanmaz ve uygunsuzluk kaydı kendiliğinden açılır.

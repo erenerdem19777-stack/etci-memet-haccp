@@ -1,0 +1,1 @@
+Etçi Memet Ha Se Se Pe uygulamasının telefonda nasıl kullanıldığını adım adım gösterelim. Uygulamayı ilk kez açan Sorumlu Yönetici; adını, kullanıcı adını ve şifresini yazarak yönetici hesabını oluşturur. Bu işlem yalnızca bir kez yapılır.

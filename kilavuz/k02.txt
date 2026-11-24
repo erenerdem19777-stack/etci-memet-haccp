@@ -1,0 +1,1 @@
+Yetkilendirme Ayarlar sekmesinden yapılır. Önce şubeler ve tedarikçiler listeye eklenir. Sonra her çalışan için ad, kullanıcı adı, şifre ve yetki seçilir. Merkez personeli kayıt girer. Yönetici ayarları ve günlük onayı yönetir. Şube kullanıcısı ise yalnızca kendi şubesini görür.

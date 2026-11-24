@@ -1,0 +1,1 @@
+Şube müdürü kendi kullanıcısıyla girdiğinde yalnızca kendi şubesini görür. Dolap sıcaklıklarını, köftenin merkez sıcaklığını ve kızartma yağını kaydeder. Köfte yetmiş iki derecenin altındaysa uygulama tekrar pişirmeyi söyler.

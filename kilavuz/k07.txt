@@ -1,0 +1,1 @@
+Üretimde, kullanılan karkas LOT'una dokunulur. Miktar, ürün sıcaklıkları, ambalaj ve dolaba giriş saatleri girilir. Kaydedince burgerin LOT numarası kendiliğinden verilir. Ertesi gün, eksi on sekiz derece ölçümü bekleyen işler listesinde çıkar.

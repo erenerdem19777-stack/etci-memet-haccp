@@ -1,0 +1,1 @@
+Mal kabulde tedarikçi seçilir, karkas numarası, kesim tarihi ve derin kas sıcaklığı girilir. Damga, sağlık raporu ve irsaliyenin fotoğrafı çekilir. Uygulama sonucu anında gösterir: artı yedi derecenin üstündeki karkas kabul edilmez.
