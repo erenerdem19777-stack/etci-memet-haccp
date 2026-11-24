@@ -17,14 +17,14 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
       - name: edge-tts kur
-        run: pip install edge-tts==7.0.2
+        run: pip install -U edge-tts && edge-tts --version || true
       - name: Seslendir (Türkçe nöral sesler)
         run: |
           for v in tr-TR-EmelNeural tr-TR-AhmetNeural; do
             d=out/$(echo $v | sed 's/tr-TR-//; s/Neural//' | tr 'A-Z' 'a-z'); mkdir -p $d
             for f in metin/*.txt; do
               n=$(basename "$f" .txt)
-              for i in 1 2 3; do edge-tts --voice $v --rate=+6% --pitch=+2Hz -f "$f" --write-media $d/$n.mp3 && break; sleep 5; done
+              for i in 1 2 3; do edge-tts --voice $v --rate=+6% --pitch=+2Hz -f "$f" --write-media $d/$n.mp3 && [ -s $d/$n.mp3 ] && break; sleep 5; done; [ -s $d/$n.mp3 ]
             done
           done
           ls -laR out
