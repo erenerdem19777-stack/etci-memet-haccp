@@ -102,6 +102,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
   <button data-v="kayit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Kayıt</button>
   <button data-v="izle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6 8l5 8M18 8l-5 8"/></svg>İzle</button>
   <button data-v="denetim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/></svg>Denetim</button>
+  <button data-v="subeler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l2-5h14l2 5"/><path d="M4 9v11h16V9"/><path d="M3 9h18"/><path d="M10 20v-6h4v6"/></svg>Şubeler</button>
   <button data-v="ayar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ayarlar</button>
 </nav>
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
@@ -128,7 +129,7 @@ const DF_BOLUM = ['Sıcaklık','Mal kabul','Üretim / CCP','Ekipman','Hijyen','S
 const S = {view:'bugun', day:today(), days:{}, ayar:{}, df:[], ek5:{}, live:false, canEdit:true, uid:null, ad:'', loadNote:''};
 let db = null, downloads = null, userCap = null, assets = null, sampleFn = null, aiOK = false;
 const LOCAL = {};
-const SURUM = '24.11.2026 15:17';
+const SURUM = '24.11.2026 15:43';
 const imgUrl = id => LOCAL[id] || (S.cloud ? fotoIste(id) : '') || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
 const thumbs = ids => (ids&&ids.length) ? `<div class="thumbs">${ids.filter(imgUrl).map(id=>`<button class="thb" data-img="${esc(id)}" aria-label="Belge fotoğrafı"><img src="${esc(imgUrl(id))}" alt="Belge fotoğrafı" loading="lazy"></button>`).join('')}</div>` : '';
 async function shrink(file){ try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',0.82)); }catch(e){ return file; } }
@@ -204,10 +205,12 @@ const openDF = () => S.df.filter(x=>!x.kapanis);
 function render(){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view||((S.view==='tip'||S.view==='plan')&&b.dataset.v==='kayit')));
   $('#day').value=S.day; $('#who').textContent='Kayıt yapan: '+(S.ad||'— (Ayarlar’dan adınızı seçin)');
-  const v = {bugun:vBugun, kayit:vKayit, izle:vIzle, denetim:vDenetim, ayar:vAyar, tip:vTip, plan:vPlan, kf:vKf}[S.view];
+  if(isSube()&&!['bugun','ayar'].includes(S.view)) S.view='bugun';
+  document.querySelectorAll('#tabs button').forEach(b=>{ b.style.display=isSube()&&!['bugun','ayar'].includes(b.dataset.v)?'none':''; });
+  const v = isSube() ? {bugun:()=>vSubeGun(S.user.sube,false), ayar:()=>vUsersBulut()}[S.view] : {bugun:vBugun, kayit:vKayit, izle:vIzle, denetim:vDenetim, ayar:vAyar, tip:vTip, plan:vPlan, kf:vKf, subeler:vSubeler}[S.view];
   restoreUser(); const tb=$('#tabs'); if(tb) tb.style.display=loginOn()&&!S.user?'none':'';
   if(loginOn()&&!S.user){ $('#who').textContent='Giriş yapılmadı'; $('#main').innerHTML=S.cloud?vLoginBulut():vLogin(); S.cloud?bindLoginBulut():bindLogin(); return; }
-  if(S.user){ $('#who').innerHTML=(S.cloud?'<span title="'+esc(bulutDurum().t)+'" style="color:'+({ok:'#2e7d32',wait:'#b26a00',bad:'#c62828'}[bulutDurum().c])+'">●</span> ':'')+'Kayıt yapan: '+esc(S.ad)+' · <a href="#" id="hdrOut" style="color:inherit">Çıkış</a>'; $('#hdrOut').onclick=e=>{ e.preventDefault(); logout(); }; }
+  if(S.user){ $('#who').innerHTML=(S.cloud?'<span title="'+esc(bulutDurum().t)+'" style="color:'+({ok:'#2e7d32',wait:'#b26a00',bad:'#c62828'}[bulutDurum().c])+'">●</span> ':'')+'Kayıt yapan: '+esc(S.ad)+(isSube()?' ('+esc(S.user.sube)+')':'')+' · <a href="#" id="hdrOut" style="color:inherit">Çıkış</a>'; $('#hdrOut').onclick=e=>{ e.preventDefault(); logout(); }; }
   const top = (S.mode==='local'?(S.cloud?bulutBanner():localBanner()):'')+(S.mode==='demo'?'<div class="banner"><b>Deneme modu:</b> ortak veritabanına bağlanılamadı; kayıtlar yalnız bu ekranda tutulur ve sayfa kapanınca silinir. Uygulamayı claude.ai bağlantısından, oturum açıkken kullanın.</div>':'')+(S.loadNote?'<div class="banner">'+esc(S.loadNote)+'</div>':'')+(!S.ad?'<div class="banner">Kayıtlarda adınızın görünmesi için <a href="#" data-go="ayar">Ayarlar</a>’dan adınızı seçin.</div>':'');
   $('#main').innerHTML = top + v();
   bindCommon();
@@ -443,7 +446,7 @@ function fbDB(fs){
     update:d=>{ ref.set(fbClean(d),{merge:true}).catch(fbErr); return Promise.resolve(); },
     delete:()=>{ ref.delete().catch(fbErr); return Promise.resolve(); },
     onSnapshot:(n,e)=>reg(ref.onSnapshot(n,e)) });
-  const Q=q=>({ orderBy:(f,d)=>Q(q.orderBy(f,d)), limit:n=>Q(q.limit(n)), onSnapshot:(n,e)=>reg(q.onSnapshot({includeMetadataChanges:true},n,e)), doc:id=>D(q.doc(id)) });
+  const Q=q=>({ where:(f,o,v)=>Q(q.where(f,o,v)), orderBy:(f,d)=>Q(q.orderBy(f,d)), limit:n=>Q(q.limit(n)), onSnapshot:(n,e)=>reg(q.onSnapshot({includeMetadataChanges:true},n,e)), doc:id=>D(q.doc(id)) });
   return { doc:p=>D(fs.doc(p)), collection:c=>Q(fs.collection(c)) };
 }
 async function fotoKucult(blob){ try{ let max=1400,q=0.75; const bmp=await createImageBitmap(blob); for(let i=0;i<4;i++){ const k=Math.min(1,max/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); const out=await new Promise(r=>c.toBlob(r,'image/jpeg',q)); if(out&&out.size<=650000) return out; max=Math.round(max*0.75); q=Math.max(0.5,q-0.08); } }catch(e){} return blob; }
@@ -468,7 +471,7 @@ function bulutDur(){ bulutUnsub.forEach(f=>{ try{ f(); }catch(e){} }); bulutUnsu
 function bulutGiris(u){ if(uyeUnsub) uyeUnsub();
   uyeUnsub=FS.doc('uyeler/'+u.uid).onSnapshot(s=>{
     if(!s.exists){ if(S.kuruluyor||s.metadata.fromCache) return; S.lgMsg='Bu kullanıcının yetkisi yok veya silinmiş. Yöneticinize başvurun.'; AUTH.signOut(); return; }
-    const p=s.data(); S.user={uid:u.uid,kadi:p.kadi,ad:p.ad,rol:p.rol}; S.ad=p.ad; S.canEdit=p.rol==='yonetici'; try{ localStorage.setItem('em_ad',p.ad); }catch(e){}
+    const p=s.data(); S.user={uid:u.uid,kadi:p.kadi,ad:p.ad,rol:p.rol,sube:p.sube||''}; S.ad=p.ad; S.canEdit=p.rol==='yonetici'; try{ localStorage.setItem('em_ad',p.ad); }catch(e){}
     if(!S.abone){ S.abone=true; abone(); bulutUnsub.push(FS.collection('uyeler').onSnapshot(q=>{ S.uyeler=q.docs.map(d=>d.data()); if(S.view==='ayar'&&!$('#sheet').classList.contains('open')) render(); },()=>{})); }
     render(); }, e=>{ console.warn(e); if(!S.kuruluyor){ S.lgMsg='Yetki kontrol edilemedi ('+(e.code||'hata')+').'; render(); } }); }
 function authMsg(e){ const c=e&&e.code||''; return /invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)?'Kullanıcı adı veya şifre yanlış.':/network/.test(c)?'İnternet bağlantısı yok. İlk giriş için internet gerekir.':/too-many/.test(c)?'Çok fazla deneme yapıldı; biraz bekleyip tekrar deneyin.':/weak-password/.test(c)?'Şifre en az 6 karakter olmalı.':/email-already/.test(c)?'Bu kullanıcı adı zaten kullanılıyor.':(e&&e.message)||'Giriş yapılamadı.'; }
@@ -494,20 +497,21 @@ function vUsersBulut(){ const L=[...(S.uyeler||[])].sort((a,b)=>a.ad.localeCompa
   ${S.user?`<div class="row" style="justify-content:space-between;align-items:center"><span>Giriş yapan: <b>${esc(S.user.ad)}</b> (${esc(S.user.kadi)} · ${S.user.rol==='yonetici'?'Yönetici':'Personel'})</span><button class="sm" id="lgOut">Çıkış</button></div>`:''}
   ${(()=>{ const d=bulutDurum(); return `<div class="row" style="margin:8px 0;align-items:center"><span class="pill ${d.c}">${esc(d.t)}</span><span class="muted" style="font-size:13px">Proje: ${esc((window.EM_FB||{}).projectId||'')} · sürüm ${esc(SURUM)}</span></div>`; })()}
   <p class="muted">Eklenen kullanıcı, uygulamayı kendi telefonuna kurup bu kullanıcı adı ve şifreyle girer. Kayıtlar bütün cihazlarda kendiliğinden görünür. Yönetici: Ayarlar, limitler, kullanıcılar ve günlük onay. Personel: kayıt girer.</p>
-  <div class="list">${L.map(u=>`<div class="item"><div><div class="t">${esc(u.ad)}</div><div class="s">${esc(u.kadi)} · ${u.rol==='yonetici'?'Yönetici':'Personel'}</div></div>${can&&S.user&&u.uid!==S.user.uid?`<button class="sm ghost" data-bdel="${esc(u.uid)}">Sil</button>`:''}</div>`).join('')}</div>
-  ${can?`<div class="grid g2" style="margin-top:8px"><label class="f"><span>Ad Soyad</span><input id="uAd" placeholder="Ali Veli"></label><label class="f"><span>Kullanıcı adı</span><input id="uK" autocapitalize="none" placeholder="ali"></label><label class="f"><span>Şifre (en az 6 karakter)</span><input id="uP" type="password" autocomplete="new-password"></label><label class="f"><span>Yetki</span><select id="uR"><option value="personel">Personel</option><option value="yonetici">Yönetici</option></select></label></div><button class="pri" id="uAdd" style="margin-top:8px">Kullanıcı ekle</button><p class="muted" style="font-size:13px">Şifresini unutan personeli silip başka bir kullanıcı adıyla (ör. ali2) yeniden ekleyin; kayıtları silinmez.</p>`:''}
-  ${can?`<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--red)">Deneme kayıtlarını sil</summary><p class="muted">İşletmede kullanmaya başlamadan önce: bütün kayıtlar (sıcaklık, kabul, üretim, sevkiyat, kontrol formları, uygunsuzluklar, Ek-5 işaretleri, fotoğraflar) <b>bütün cihazlardan</b> silinir. Kullanıcılar, şifreler ve ayarlar kalır. Geri alınamaz.</p><label class="f"><span>Onaylamak için <b>SİL</b> yazın</span><input id="silOnay" autocapitalize="characters"></label><button class="sm" id="silGo" style="margin-top:6px;border-color:var(--red);color:var(--red)">Bütün kayıtları sil</button></details>`:''}
+  <div class="list">${L.map(u=>`<div class="item"><div><div class="t">${esc(u.ad)}</div><div class="s">${esc(u.kadi)} · ${u.rol==='yonetici'?'Yönetici':u.rol==='sube'?'Şube: '+esc(u.sube||''):'Personel'}</div></div>${can&&S.user&&u.uid!==S.user.uid?`<button class="sm ghost" data-bdel="${esc(u.uid)}">Sil</button>`:''}</div>`).join('')}</div>
+  ${can?`<div class="grid g2" style="margin-top:8px"><label class="f"><span>Ad Soyad</span><input id="uAd" placeholder="Ali Veli"></label><label class="f"><span>Kullanıcı adı</span><input id="uK" autocapitalize="none" placeholder="ali"></label><label class="f"><span>Şifre (en az 6 karakter)</span><input id="uP" type="password" autocomplete="new-password"></label><label class="f"><span>Yetki</span><select id="uR"><option value="personel">Merkez personeli</option><option value="yonetici">Yönetici</option><option value="sube">Şube kullanıcısı (müdür / sahip)</option></select></label><label class="f"><span>Şube (yalnız şube kullanıcısı için)</span><select id="uS"><option value="">—</option>${subeler().map(x=>`<option>${esc(x)}</option>`).join('')}</select></label></div><button class="pri" id="uAdd" style="margin-top:8px">Kullanıcı ekle</button><p class="muted" style="font-size:13px">Şifresini unutan personeli silip başka bir kullanıcı adıyla (ör. ali2) yeniden ekleyin; kayıtları silinmez.</p>`:''}
+  ${can?`<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--red)">Deneme kayıtlarını sil</summary><p class="muted">İşletmede kullanmaya başlamadan önce: bütün kayıtlar (sıcaklık, kabul, üretim, sevkiyat, kontrol formları, uygunsuzluklar, Ek-5 işaretleri, şube kontrolleri ve denetimleri, fotoğraflar) <b>bütün cihazlardan</b> silinir. Kullanıcılar, şifreler ve ayarlar kalır. Geri alınamaz.</p><label class="f"><span>Onaylamak için <b>SİL</b> yazın</span><input id="silOnay" autocapitalize="characters"></label><button class="sm" id="silGo" style="margin-top:6px;border-color:var(--red);color:var(--red)">Bütün kayıtları sil</button></details>`:''}
   <details style="margin-top:10px"><summary style="cursor:pointer">Kendi şifremi değiştir</summary><label class="f"><span>Yeni şifre (en az 6 karakter)</span><input id="myPw" type="password" autocomplete="new-password"></label><button class="sm" id="myPwGo" style="margin-top:6px">Değiştir</button></details>
   ${S.uMsg?`<div class="aibox">${esc(S.uMsg)}</div>`:''}</div></section>`; }
 function bindUsersBulut(){ const lo=$('#lgOut'); if(lo) lo.onclick=logout;
-  const add=$('#uAdd'); if(add) add.onclick=async()=>{ const ad=$('#uAd').value.trim(), k=kNorm($('#uK').value), p=$('#uP').value, rol=$('#uR').value;
+  const add=$('#uAdd'); if(add) add.onclick=async()=>{ const ad=$('#uAd').value.trim(), k=kNorm($('#uK').value), p=$('#uP').value, rol=$('#uR').value, sube=($('#uS')||{}).value||'';
+    if(rol==='sube'&&!sube){ S.uMsg='Şube kullanıcısı için şubeyi seçin (listede yoksa önce Ayarlar → Şubeler’e ekleyin).'; render(); return; }
     if(!ad||!k||p.length<6){ S.uMsg='Ad, kullanıcı adı ve en az 6 karakterli şifre girin.'; render(); return; }
     if((S.uyeler||[]).some(u=>u.kadi===k)){ S.uMsg='Bu kullanıcı adı zaten var.'; render(); return; }
     add.disabled=true; add.textContent='Ekleniyor…';
     try{ const ek=firebase.apps.find(a=>a.name==='ek')||firebase.initializeApp(window.EM_FB,'ek'); const ea=ek.auth(); let c;
       try{ c=await ea.createUserWithEmailAndPassword(kEmail(k),p); }catch(e){ if(/email-already/.test(e.code||'')){ try{ c=await ea.signInWithEmailAndPassword(kEmail(k),p); }catch(e2){ throw {message:'Bu kullanıcı adı daha önce kullanılmış; başka bir kullanıcı adı seçin.'}; } } else throw e; }
-      const nu=c.user.uid; await ea.signOut(); await FS.doc('uyeler/'+nu).set({uid:nu,kadi:k,ad,rol,ts:Date.now(),ekleyen:S.ad||''});
-      const per=S.ayar.personel||[]; if(!per.includes(ad)) await saveAyar({personel:[...per,ad]});
+      const nu=c.user.uid; await ea.signOut(); await FS.doc('uyeler/'+nu).set({uid:nu,kadi:k,ad,rol,...(rol==='sube'?{sube}:{}),ts:Date.now(),ekleyen:S.ad||''});
+      const per=S.ayar.personel||[]; if(rol!=='sube'&&!per.includes(ad)) await saveAyar({personel:[...per,ad]});
       S.uMsg=`${ad} eklendi. Kullanıcı adı: ${k} – şifreyi kendisine iletin.`; }
     catch(e){ S.uMsg=authMsg(e); } render(); };
   document.querySelectorAll('[data-bdel]').forEach(b=>b.onclick=async()=>{ const u=(S.uyeler||[]).find(x=>x.uid===b.dataset.bdel); if(!u) return; if(!confirm(u.ad+' silinsin mi? Girdiği kayıtlar silinmez.')) return; try{ await FS.doc('uyeler/'+u.uid).delete(); S.uMsg=u.ad+' silindi; artık giriş yapamaz.'; }catch(e){ S.uMsg='Silinemedi ('+(e.code||'hata')+').'; } render(); });
@@ -517,6 +521,7 @@ function bulutDurum(){ const y=S.sync||{}; if(navigator.onLine===false) return {
 async function kayitlariSil(){ const silinecek=[]; Object.keys(S.days).forEach(k=>silinecek.push('gun/'+k)); S.df.forEach(x=>x&&x.id&&silinecek.push('df/'+x.id)); silinecek.push('ek5/guncel');
   try{ const q=await FS.collection('gun').get(); q.docs.forEach(d=>silinecek.push('gun/'+d.id)); }catch(e){}
   try{ const q=await FS.collection('df').get(); q.docs.forEach(d=>silinecek.push('df/'+d.id)); }catch(e){}
+  for(const c of ['sube','subedenetim']){ try{ const q=await FS.collection(c).get(); q.docs.forEach(d=>silinecek.push(c+'/'+d.id)); }catch(e){} }
   try{ const q=await FS.collection('foto').get(); q.docs.forEach(d=>silinecek.push('foto/'+d.id)); }catch(e){}
   const tek=[...new Set(silinecek)]; for(let i=0;i<tek.length;i+=400){ const b=FS.batch(); tek.slice(i,i+400).forEach(p=>b.delete(FS.doc(p))); await b.commit(); }
   await saveAyar({temizlik:Date.now()}); try{ await idbTx('docs','readwrite',st=>st.clear()); await idbTx('blobs','readwrite',st=>st.clear()); localStorage.setItem('em_bulut_yerel','1'); }catch(e){} YEREL_INIT={};
@@ -527,6 +532,91 @@ async function yereliBulutaYukle(){ const docs={...YEREL_INIT}; const blobs={}; 
   for(const id of ids){ try{ const b=await idbTx('blobs','readonly',st=>st.get(id)); if(b) blobs[id]={t:b.type||'image/jpeg',d:await b64(b)}; }catch(e){} }
   await importData(new File([JSON.stringify({app:'etci-memet-haccp',v:1,cihaz:'bu cihaz (bulut öncesi)',docs,blobs})],'yerel.json',{type:'application/json'}));
   try{ localStorage.setItem('em_bulut_yerel','1'); }catch(e){} render(); }
+
+/* ---------- şubeler ---------- */
+const sKey = n => kNorm(n).replace(/[ığüşöç]/g,c=>TRMAP[c]||c).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'sube';
+const isSube = () => !!(S.user&&S.user.rol==='sube');
+const SB_DOLAP=[{k:'don',ad:'Dondurucu',op:'<=',lim:-18},{k:'buz',ad:'Buzdolabı (et, hazır ürün)',op:'<=',lim:4},{k:'sos',ad:'Salata / sos dolabı',op:'<=',lim:5}];
+const SB_HIJ=['Personel temiz iş kıyafeti ve bone / saç filesi kullanıyor','Personelde ishal, kusma, ateş, açık yara gibi hastalık belirtisi yok','El yıkama lavabosunda sıvı sabun, kâğıt havlu ve dezenfektan var','Çiğ et için ayrı maşa, kesme tahtası ve eldiven kullanılıyor','Çiğ ve pişmiş / hazır ürünler dolapta ayrı ve kapalı duruyor','Açılan ürünlerde açılış tarihi etiketi var; tarihi geçmiş ürün yok','Burger çözündürülecekse buzdolabında çözündürülüyor; çözülen ürün tekrar dondurulmuyor','Izgara, tezgâh, fritöz çevresi ve ekipman temiz','Haşere izi yok; kapı, pencere ve sineklikler sağlam','Çöp kovaları kapaklı, atıklar düzenli boşaltılıyor','Müşteriye alerjen bilgisi verilebiliyor (menü / bilgi kartı)'];
+const SQ=(t,o)=>({t,...(o||{})});
+const SB_HAFTA=[SQ('Prob termometre buzlu suda kontrol edildi (0 °C ± 0,5)',{v:'°C',min:-0.5,max:0.5}),SQ('Derin temizlik yapıldı (davlumbaz, fritöz, dolap içleri, contalar)'),SQ('Kullanılmış kızartma yağı lisanslı toplayıcıya teslim edildi (belge saklanıyor)'),SQ('Haşere kontrolü yapıldı; firma ziyareti / raporu güncel'),SQ('Dolap termometreleri ve contaları sağlam'),SQ('Personele hijyen kuralları hatırlatıldı'),SQ('Müşteri şikâyeti varsa kaydedildi ve merkeze bildirildi')];
+const SB_ZIY=[['Mal kabul ve depolama',['Merkezden gelen burger donuk (≤ −15 °C) teslim alınıyor ve kaydediliyor','İrsaliye ve LOT bilgisi saklanıyor','Dondurucu ≤ −18 °C, buzdolabı 0/+4 °C','Çiğ et altta, hazır ürünler üstte; zemine ürün konmuyor','Açılış tarihi etiketleri var; tarihi geçmiş ürün yok']],
+ ['Pişirme ve servis',['Köfte merkez sıcaklığı prob termometreyle ölçülüyor (≥ 72 °C)','Çözündürme buzdolabında yapılıyor; tekrar dondurma yok','Pişmiş ürün ≥ 63 °C’de en fazla 2 saat bekletiliyor','Çiğ ve pişmiş için ayrı maşa / tahta kullanılıyor']],
+ ['Kızartma',['Yağ sıcaklığı ≤ 180 °C','Polar madde ≤ %25 (test sonucu)','Atık yağ lisanslı toplayıcıya veriliyor']],
+ ['Personel ve hijyen',['Bone, temiz kıyafet; takı yok','El yıkama düzeni ve malzemesi tam','Personel sağlık raporları güncel','Hijyen eğitimi verilmiş']],
+ ['Temizlik, haşere, kayıtlar',['Ekipman ve yüzeyler temiz; temizlik planı uygulanıyor','Haşere izi yok; firma raporu güncel','Günlük şube kontrol formları eksiksiz dolduruluyor','Alerjen bilgilendirmesi yapılıyor']]];
+const ZIY_LIST = SB_ZIY.flatMap(([g,qs])=>qs.map(q=>g+' – '+q));
+function subeler(){ return (S.ayar||{}).subeler||[]; }
+const sId = (sube,k) => sKey(sube)+'_'+k;
+const SD = (sube,k) => (S.sube||{})[sId(sube,k)]||{};
+async function putSube(sube,k,patch){ const id=sId(sube,k); return serial('sube/'+id, async()=>{ const ref=db.doc('sube/'+id); if(!S.cloud&&!(S.sube||{})[id]){ const s=await ref.get(); if(!s.exists) await ref.set({sube,tarih:k}); } await ref.update({sube,tarih:k,...patch}); }); }
+async function putSubeEntry(sube,k,sec,e){ return putSube(sube,k,{[sec]:{[e.id]:{...e,tsU:Date.now()}}}); }
+function subeDurum(sube,k){ const d=SD(sube,k); const dol=SB_DOLAP.filter(x=>vals(d.dolap).some(e=>e.nokta===x.k)).length; const pis=vals(d.pisirme).length, yag=vals(d.yag).length;
+  const it=[['Dolaplar',dol===SB_DOLAP.length],['Pişirme (en az 2)',pis>=2],['Kızartma yağı',yag>=1],['Hijyen',!!d.hijyen],['Şube onayı',!!d.onay]];
+  let bad=0; ['kabul','dolap','pisirme','yag'].forEach(s=>vals(d[s]).forEach(e=>{ if(e.sonuc==='bad') bad++; })); if(d.hijyen&&d.hijyen.sonuc==='bad') bad++;
+  return {d,it,done:it.filter(x=>x[1]).length,bad}; }
+function subeAbone(){ const done=()=>{}; 
+  const q1=isSube()&&S.cloud?db.collection('sube').where('sube','==',S.user.sube):db.collection('sube').orderBy('tarih','desc').limit(1500);
+  q1.onSnapshot(s=>{ const o={}; s.docs.forEach(d=>o[d.id]=d.data()); S.sube=o; if(!$('#sheet').classList.contains('open')&&!kfTyping()) render(); },e=>console.warn('sube',e));
+  const q2=isSube()&&S.cloud?db.collection('subedenetim').where('sube','==',S.user.sube):db.collection('subedenetim').orderBy('ts','desc').limit(300);
+  q2.onSnapshot(s=>{ S.subeDen=s.docs.map(d=>d.data()).sort((a,b)=>(b.ts||0)-(a.ts||0)); if(!$('#sheet').classList.contains('open')) render(); },e=>console.warn('subeden',e)); }
+const sbLim = r => r.op==='>='?`≥ ${r.lim} °C`:`≤ ${r.lim} °C`;
+function vSubeler(){ if(S.subeSec) return vSubeGun(S.subeSec,true);
+  const L=subeler(), k=S.day;
+  return `<section class="sec"><h2>Şubeler <small>${trDate(k)} · günlük kontrol durumu</small></h2>
+  ${L.length?`<div class="list">${L.map(sb=>{ const st=subeDurum(sb,k); const son=(S.subeDen||[]).find(x=>x.sube===sb);
+    return `<div class="item" data-sbsec="${esc(sb)}" style="cursor:pointer"><div><div class="t">${esc(sb)}</div><div class="s">${st.it.map(x=>(x[1]?'✓ ':'· ')+x[0]).join('  ')}${son?` · son ziyaret: ${trDate(son.tarih)} – %${son.puan}`:''}</div></div><div class="row" style="gap:6px">${st.bad?`<span class="pill bad">${st.bad} uygunsuz</span>`:''}${st.done===st.it.length?'<span class="pill ok">Tamam</span>':`<span class="pill ${st.done?'wait':'bad'}">${st.done}/${st.it.length}</span>`}</div></div>`; }).join('')}</div>`:'<div class="card"><p>Önce Ayarlar → Şubeler listesine şubeleri ekleyin.</p></div>'}
+  <p class="muted" style="margin-top:8px">Şubeye dokunun → o günün kontrolleri, haftalık kontrol ve ziyaret denetimi. Şube kullanıcısı (müdür / sahip) eklemek için: Ayarlar → Kullanıcılar → Yetki: Şube kullanıcısı.</p></section>
+  <section class="sec"><h2>Son ziyaret denetimleri</h2><div class="list">${(S.subeDen||[]).slice(0,10).map(z=>`<div class="item"><div><div class="t">${esc(z.sube)} · %${z.puan}</div><div class="s">${trDate(z.tarih)} · ${esc(z.ad||'')} · ${z.hayir} uygunsuz madde</div></div><button class="sm" data-zpdf="${esc(z.id)}">PDF</button></div>`).join('')||'<p class="muted">Henüz yok.</p>'}</div></section>`; }
+function vSubeGun(sb,merkez){ const k=S.day, st=subeDurum(sb,k), d=st.d; const Pm=perOf('h',k); const hid=sKey(sb)+'_H_'+Pm.from; const H=(S.sube||{})[hid]||{}; const ha=H.ans||{};
+  const row=(t,s,p,extra)=>`<div class="item"><div><div class="t">${t}</div><div class="s">${s}</div></div>${p}${extra||''}</div>`;
+  const dol=SB_DOLAP.map(x=>{ const e=[...vals(d.dolap)].reverse().find(y=>y.nokta===x.k); return `<div class="n">${esc(x.ad)}<small>${sbLim(x)}</small></div>${e?`<button class="stamp ${e.sonuc}" data-sbdol="${x.k}">${esc(e.deger)}°<small>${e.sonuc==='ok'?'uygun':'limit dışı'}</small></button>`:`<button class="stamp" data-sbdol="${x.k}">+<small>ölç</small></button>`}`; }).join('');
+  return `<section class="sec">${merkez?'<button class="sm ghost" id="sbGeri">← Şubeler</button>':''}<h2 style="margin-top:8px">${esc(sb)} <small>${GUNAD[dow(k)]} ${trDate(k)} · ${st.done}/${st.it.length} bölüm${st.bad?` · <b style="color:var(--red)">${st.bad} uygunsuz</b>`:''}</small></h2>
+   ${merkez?`<div class="row"><button class="pri" id="zNew">+ Ziyaret denetimi</button></div>`:''}</section>
+  <section class="sec"><h2>A) Merkezden mal kabul <small>burger ≤ −15 °C · füme/sosis ≤ +4 °C</small></h2><div class="list">${vals(d.kabul).map(e=>row(`${esc(e.saat)} · ${esc(e.urun)} · LOT ${esc(e.lot||'—')}`,`${esc(e.deger)} °C · ambalaj ${esc(e.ambalaj)} · SKT ${esc(e.skt)}${e.df?' · DF: '+esc(e.df):''} · ${esc(e.ad||'')}`,pill(e.sonuc),thumbs(e.foto))).join('')}<button class="sm" data-sbnew="kabul">+ Mal kabul</button></div></section>
+  <section class="sec"><h2>B) Dolap sıcaklıkları <small>günde 1, açılışta</small></h2><div class="card"><div class="tgrid" style="grid-template-columns:1fr auto">${dol}</div></div></section>
+  <section class="sec"><h2>C) Pişirme – köfte merkez sıcaklığı <small>≥ 72 °C · günde en az 2 ölçüm</small></h2><div class="list">${vals(d.pisirme).map(e=>row(`${esc(e.saat)} · ${esc(e.urun)} · ${esc(e.deger)} °C${e.sicak!=null&&e.sicak!==''?' · sıcak tutma '+esc(e.sicak)+' °C':''}`,`${e.df?'DF: '+esc(e.df)+' · ':''}${esc(e.ad||'')}`,pill(e.sonuc))).join('')}<button class="sm pri" data-sbnew="pisirme">+ Pişirme ölçümü</button></div></section>
+  <section class="sec"><h2>D) Kızartma yağı <small>≤ 180 °C · polar madde ≤ %25</small></h2><div class="list">${vals(d.yag).map(e=>row(`${esc(e.saat)} · ${esc(e.sicak)} °C${e.polar!=null&&e.polar!==''?' · polar %'+esc(e.polar):''}`,`${esc(e.degisti)}${e.df?' · DF: '+esc(e.df):''} · ${esc(e.ad||'')}`,pill(e.sonuc))).join('')}<button class="sm" data-sbnew="yag">+ Yağ kontrolü</button></div></section>
+  <section class="sec"><h2>E) Günlük hijyen kontrolü <small>${SB_HIJ.length} soru</small></h2><div class="card">${d.hijyen?SB_HIJ.map((t,i)=>`<div class="chk"><span>${i+1}. ${esc(t)}</span>${d.hijyen.items[i]==='Hayır'?'<span class="pill bad">Hayır</span>':d.hijyen.items[i]?'<span class="pill ok">Evet</span>':'<span class="pill n">—</span>'}</div>`).join('')+`<p class="muted">${esc(d.hijyen.ad||'')} ${esc(d.hijyen.saat||'')}${d.hijyen.not?' · '+esc(d.hijyen.not):''}</p>`:'<button class="pri" data-sbnew="hijyen">Hijyen kontrolünü yap</button>'}</div></section>
+  <section class="sec"><h2>F) Şube sorumlusu günlük onayı</h2><div class="card">${d.onay?`<span class="pill ok">Onaylandı</span> ${esc(d.onay.ad)} · ${esc(d.onay.saat)}`:'<button class="pri" id="sbOnay">Günü kontrol ettim, onaylıyorum</button>'}</div></section>
+  <section class="sec"><h2>Haftalık şube kontrolü <small>${esc(Pm.label)}</small></h2><div class="card">${SB_HAFTA.map((q,qi)=>{ const a=ha[qi]||{}; return `<div class="chk kfrow"><span>${esc(q.t)}</span><div class="kfa">${q.v?`<span class="numw" style="width:150px"><button type="button" class="pm" aria-label="Eksi / artı">−/+</button><input type="text" inputmode="decimal" data-sbhv="${qi}" value="${esc(a.v??'')}" aria-label="Değer"></span>`:''}<div class="seg kfseg" data-sbhq="${qi}">${[['U','Uygun'],['UD','Uygun değil'],['NA','U.D.']].map(([v,l])=>`<button class="${a.a===v?'on':''} ${v==='UD'&&a.a===v?'badon':''}" data-a="${v}">${l}</button>`).join('')}</div></div></div>`; }).join('')}<p class="muted" style="font-size:13px">Cevaplar kendiliğinden kaydedilir.${H.adU?' Son: '+esc(H.adU):''}</p></div></section>
+  <section class="sec"><h2>Ziyaret denetimleri <small>merkez</small></h2><div class="list">${(S.subeDen||[]).filter(z=>z.sube===sb).slice(0,8).map(z=>`<div class="item"><div><div class="t">${trDate(z.tarih)} · %${z.puan}</div><div class="s">${esc(z.ad||'')} · ${z.hayir} uygunsuz madde${z.not?' · '+esc(z.not):''}</div></div><button class="sm" data-zpdf="${esc(z.id)}">PDF</button></div>`).join('')||'<p class="muted">Henüz yok.</p>'}</div></section>`; }
+function sbCalcDeger(op,lim,v){ const n=num(v); if(n==null) return null; return op==='>='?n>=lim:n<=lim; }
+function bindSube(){ const m=$('#main'); const sb=isSube()?S.user.sube:S.subeSec;
+  m.querySelectorAll('[data-sbsec]').forEach(el=>el.onclick=()=>{ S.subeSec=el.dataset.sbsec; render(); window.scrollTo(0,0); });
+  const g=$('#sbGeri'); if(g) g.onclick=()=>{ S.subeSec=null; render(); };
+  m.querySelectorAll('[data-zpdf]').forEach(b=>b.onclick=()=>ziyPdf(b.dataset.zpdf));
+  if(!sb) return; const k=S.day;
+  m.querySelectorAll('[data-sbdol]').forEach(b=>b.onclick=()=>{ const x=SB_DOLAP.find(y=>y.k===b.dataset.sbdol); openForm({title:`${x.ad} – ${sb}`,note:`Limit ${sbLim(x)}`,fields:[{k:'deger',l:'Ölçülen sıcaklık °C',t:'num',req:true}],
+    calc:s=>{ const ok=sbCalcDeger(x.op,x.lim,s.deger); return ok==null?null:{ok,msg:ok?'Uygun':'Limit dışı – ürünleri kontrol edin, dolabı düzeltin'}; },
+    save:async(s,r)=>putSubeEntry(sb,k,'dolap',{...base(),nokta:x.k,deger:num(s.deger),sonuc:r.ok?'ok':'bad',df:s.df||''}) }); });
+  m.querySelectorAll('[data-sbnew]').forEach(b=>b.onclick=()=>{ const t=b.dataset.sbnew;
+    if(t==='kabul') openForm({title:'Merkezden mal kabul – '+sb,fields:[{k:'urun',l:'Ürün',t:'seg',o:['Burger (donuk)','Füme et','Sosis','Diğer'],req:true},{k:'lot',l:'LOT / parti no (etiketten)'},{k:'deger',l:'Ürün sıcaklığı °C',t:'num',req:true},{k:'ambalaj',l:'Ambalaj',t:'seg',o:['Sağlam','Hasarlı'],req:true},{k:'skt',l:'Son tüketim tarihi',t:'seg',o:['Uygun','Geçmiş / çok yakın'],req:true},{k:'foto',l:'İrsaliye / etiket fotoğrafı',t:'foto'}],
+      calc:s=>{ if(!s.urun||num(s.deger)==null) return null; const v=num(s.deger); const tOk=s.urun==='Burger (donuk)'?v<=-15:(s.urun==='Diğer'?true:v<=4); const ok=tOk&&s.ambalaj!=='Hasarlı'&&s.skt!=='Geçmiş / çok yakın'; return {ok,msg:ok?'Kabul edilebilir':'Uygun değil – ürünü kabul etmeyin / ayırın, merkeze bildirin'}; },
+      save:async(s,r)=>putSubeEntry(sb,k,'kabul',{...base(),urun:s.urun,lot:s.lot||'',deger:num(s.deger),ambalaj:s.ambalaj,skt:s.skt,foto:fotoIds(s),sonuc:r.ok?'ok':'bad',df:s.df||''}) });
+    if(t==='pisirme') openForm({title:'Pişirme ölçümü – '+sb,note:'Prob termometreyi köftenin en kalın yerinin ortasına batırın; renge göre karar vermeyin.',fields:[{k:'urun',l:'Ürün',t:'seg',o:['Burger köfte','Diğer'],req:true},{k:'deger',l:'Merkez sıcaklığı °C (≥ 72)',t:'num',req:true},{k:'sicak',l:'Sıcak tutma °C (varsa, ≥ 63)',t:'num'}],
+      calc:s=>{ const v=num(s.deger); if(v==null) return null; const h=num(s.sicak); const ok=v>=72&&(h==null||h>=63); return {ok,msg:ok?'Uygun':v<72?'Yetersiz pişirme – köfteyi tekrar pişirin, yeniden ölçün':'Sıcak tutma 63 °C altında – ürünü yeniden ısıtın veya atın'}; },
+      save:async(s,r)=>putSubeEntry(sb,k,'pisirme',{...base(),urun:s.urun,deger:num(s.deger),sicak:num(s.sicak),sonuc:r.ok?'ok':'bad',df:s.df||''}) });
+    if(t==='yag') openForm({title:'Kızartma yağı – '+sb,note:'Kızartmada kullanılan yağ: sıcaklık ≤ 180 °C, polar madde ≤ %25 (test cihazı / çubuğu).',fields:[{k:'sicak',l:'Yağ sıcaklığı °C (≤ 180)',t:'num',req:true},{k:'polar',l:'Polar madde % (≤ 25)',t:'num'},{k:'degisti',l:'Yağ bugün değiştirildi mi?',t:'seg',o:['Hayır','Evet – yağ değiştirildi'],req:true}],
+      calc:s=>{ const v=num(s.sicak); if(v==null) return null; const p=num(s.polar); const ok=v<=180&&(p==null||p<=25); return {ok,msg:ok?'Uygun':p!=null&&p>25?'Polar madde %25’i aştı – yağı değiştirin':'Yağ çok sıcak – termostatı düşürün'}; },
+      save:async(s,r)=>putSubeEntry(sb,k,'yag',{...base(),sicak:num(s.sicak),polar:num(s.polar),degisti:s.degisti,sonuc:r.ok?'ok':'bad',df:s.df||''}) });
+    if(t==='hijyen') openForm({title:'Günlük hijyen kontrolü – '+sb,fields:[{k:'items',l:'',t:'check',o:SB_HIJ},{k:'not',l:'Not (Hayır olanlar için ne yapıldı)',t:'area'}],
+      calc:s=>{ const it=s.items||[]; if(it.filter(Boolean).length<SB_HIJ.length) return {ok:null,msg:`${it.filter(Boolean).length}/${SB_HIJ.length} cevaplandı`}; const h=it.filter(x=>x==='Hayır').length; return {ok:h===0,msg:h?h+' maddede uygunsuzluk':'Hepsi uygun'}; },
+      save:async(s,r)=>{ if((s.items||[]).filter(Boolean).length<SB_HIJ.length) throw {code:'eksik'}; await putSube(sb,k,{hijyen:{items:s.items,not:s.not||'',df:s.df||'',ad:S.ad,saat:nowHM(),ts:Date.now(),sonuc:r.ok?'ok':'bad'}}); } }); });
+  const on=$('#sbOnay'); if(on) on.onclick=()=>putSube(sb,k,{onay:{ad:S.ad,saat:nowHM(),ts:Date.now()}}).catch(failWrite);
+  const Pm=perOf('h',k), hk=sKey(sb)+'_H_'+Pm.from;
+  const hSave=(qi,patch)=>{ const cur=((S.sube||{})[hk]||{}).ans||{}; const a={...(cur[qi]||{}),...patch,ad:S.ad,t:Date.now()}; serial('sube/'+hk,async()=>{ const ref=db.doc('sube/'+hk); if(!S.cloud&&!(S.sube||{})[hk]){ const s0=await ref.get(); if(!s0.exists) await ref.set({sube:sb,tarih:Pm.from,hafta:true}); } await ref.update({sube:sb,tarih:Pm.from,hafta:true,adU:S.ad,ans:{[qi]:a}}); }).catch(failWrite); };
+  m.querySelectorAll('[data-sbhq] button').forEach(b=>b.onclick=()=>{ const qi=b.parentElement.dataset.sbhq; const cur=((((S.sube||{})[hk]||{}).ans||{})[qi]||{}).a; const v=cur===b.dataset.a?'':b.dataset.a; b.parentElement.querySelectorAll('button').forEach(x=>{ x.classList.toggle('on',x.dataset.a===v); x.classList.toggle('badon',x.dataset.a==='UD'&&v==='UD'); }); hSave(qi,{a:v}); });
+  m.querySelectorAll('[data-sbhv]').forEach(inp=>inp.onchange=()=>{ const qi=+inp.dataset.sbhv; const q=SB_HAFTA[qi]; const v=num(inp.value); const p={v}; if(v!=null&&(q.min!=null||q.max!=null)) p.a=((q.min==null||v>=q.min)&&(q.max==null||v<=q.max))?'U':'UD'; hSave(qi,p); });
+  const zn=$('#zNew'); if(zn) zn.onclick=()=>openForm({title:'Ziyaret denetimi – '+sb,note:'Her maddeyi işaretleyin: Evet = uygun, Hayır = uygun değil. Gerekirse fotoğraf ekleyin.',fields:[{k:'yetkili',l:'Şube yetkilisi (ad soyad)'},{k:'items',l:'',t:'check',o:ZIY_LIST},{k:'foto',l:'Fotoğraflar',t:'foto'},{k:'not',l:'Bulgular ve istenen düzeltmeler',t:'area'}],
+    calc:s=>{ const it=s.items||[]; const e=it.filter(x=>x==='Evet').length, h=it.filter(x=>x==='Hayır').length; if(!e&&!h) return null; return {ok:h===0?true:null,msg:`Puan %${Math.round(100*e/(e+h))} · ${h} uygunsuz madde · ${ZIY_LIST.length-e-h} değerlendirilmedi`}; },
+    save:async s=>{ const it=s.items||[]; const e=it.filter(x=>x==='Evet').length, h=it.filter(x=>x==='Hayır').length; const id=uid(); const z={id,sube:sb,tarih:k,ad:S.ad,yetkili:s.yetkili||'',items:it,foto:fotoIds(s),not:s.not||'',puan:e+h?Math.round(100*e/(e+h)):0,evet:e,hayir:h,ts:Date.now()}; await serial('subedenetim/'+id,()=>db.doc('subedenetim/'+id).set(z)); } }); }
+async function ziyPdf(id){ const z=(S.subeDen||[]).find(x=>x.id===id); if(!z) return; toast('PDF hazırlanıyor…'); const E=s=>esc(s??''); const box=on=>on?'<b style="font-size:11pt">☒</b>':'<span style="font-size:11pt">☐</span>';
+  const head=`<div class="hd"><div><b>ETÇİ MEMET</b><br>ŞUBE GIDA GÜVENLİĞİ ZİYARET DENETİMİ</div><div class="r">${E(z.sube)}<br>${trDate(z.tarih)}</div></div>`;
+  let i=0; const grp=([g,qs])=>`<h3>${E(g)}</h3><table><thead><tr><th style="width:5%">#</th><th>Madde</th><th style="width:10%;text-align:center">Uygun</th><th style="width:12%;text-align:center">Uygun değil</th></tr></thead><tbody>${qs.map(q=>{ const a=(z.items||[])[i++]; return `<tr><td>${i}</td><td>${E(q)}</td><td style="text-align:center">${box(a==='Evet')}</td><td style="text-align:center" class="${a==='Hayır'?'bad':''}">${box(a==='Hayır')}</td></tr>`; }).join('')}</tbody></table>`;
+  const b1=SB_ZIY.slice(0,3).map(grp).join(''), b2=SB_ZIY.slice(3).map(grp).join('');
+  const page=`<section class="page">${head}<h1>Şube ziyaret denetimi – ${E(z.sube)}</h1><p>Tarih: <b>${trDate(z.tarih)}</b> · Denetleyen: <b>${E(z.ad)}</b> · Şube yetkilisi: <b>${E(z.yetkili||'……………')}</b> · Puan: <b>%${z.puan}</b> (${z.evet} uygun, ${z.hayir} uygun değil)</p>${b1}</section><section class="page">${head}${b2}<p><b>Bulgular ve istenen düzeltmeler:</b> ${E(z.not||'—')}</p><div class="sign"><div>Denetleyen<br><br>${E(z.ad)}<br>İmza:</div><div>Şube yetkilisi<br><br>${E(z.yetkili||'')}<br>İmza:</div><div>Düzeltme termini</div></div></section>`;
+  try{ const css=(await buildReport(z.tarih,z.tarih,'',false,true)).css; const blob=await makePdf({css,pages:page.split('</section>').filter(x=>x.trim()).map(x=>x+'</section>')}); const m=await saveFile(blob,`EtciMemet_Sube_Denetim_${sKey(z.sube)}_${z.tarih}.pdf`,'Şube ziyaret denetimi','PDF'); toast(m||'PDF hazır'); }catch(e){ console.warn(e); toast('PDF oluşturulamadı'); } }
 
 /* ---------- dönemsel kontrol formları (HACCP planı) ---------- */
 const AYAD=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
@@ -940,7 +1030,7 @@ Yalnız şu JSON nesnesini döndür: {"sube": "irsaliyedeki alıcı şube adı" 
 
 /* ---------- olaylar ---------- */
 function bindCommon(){
-  const m=$('#main'); bindKf();
+  const m=$('#main'); bindKf(); bindSube(); if(isSube()){ bindUsersBulut(); return; }
   m.querySelectorAll('[data-go]').forEach(b=>b.onclick=e=>{e.preventDefault(); S.view=b.dataset.go; render();});
   m.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>FORMS[b.dataset.new]());
   m.querySelectorAll('[data-tip]').forEach(b=>b.onclick=()=>{ S.tip=b.dataset.tip; S.view='tip'; S.tpMsg=''; render(); window.scrollTo(0,0); });
@@ -1210,6 +1300,8 @@ async function start(){
   abone(); render();
 }
 function abone(){
+  if(isSube()){ db.doc('ayar/genel').onSnapshot(s=>{ S.ayar=s.exists?s.data():{}; if(!$('#sheet').classList.contains('open')) render(); }, ()=>{}); subeAbone(); return; }
+  subeAbone();
   const timer=setTimeout(()=>{ S.loadNote='Veriye henüz ulaşılamadı; bağlantıyı kontrol edin. Gösterilenler eksik olabilir.'; render(); },10000);
   const done=()=>{ clearTimeout(timer); if(S.loadNote){ S.loadNote=''; } };
   db.collection('gun').orderBy('tarih','desc').limit(400).onSnapshot(s=>{ if(S.cloud){ const m=s.metadata||{}; S.sync={cache:!!m.fromCache,bekleyen:!!m.hasPendingWrites,t:m.fromCache?((S.sync||{}).t||0):Date.now()}; } const o={}; s.docs.forEach(d=>o[d.id]=d.data()); S.days=o; if(!s.metadata.fromCache) done(); if(!$('#sheet').classList.contains('open')&&!kfTyping()) render(); }, e=>{ done(); S.loadNote='Kayıtlar okunamadı ('+e.code+').'; render(); });
