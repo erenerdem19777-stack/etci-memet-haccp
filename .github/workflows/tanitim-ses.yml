@@ -16,24 +16,15 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - name: Piper TTS kur
-        run: pip install piper-tts==1.2.0
-      - name: Türkçe sesleri indir (rhasspy/piper-voices, MIT)
+      - name: edge-tts kur
+        run: pip install edge-tts==7.0.2
+      - name: Seslendir (Türkçe nöral sesler)
         run: |
-          mkdir -p model
-          for v in fahrettin dfki fettah; do
-            b=https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/tr/tr_TR/$v/medium/tr_TR-$v-medium
-            curl -fsSL -o model/$v.onnx "$b.onnx"
-            curl -fsSL -o model/$v.onnx.json "$b.onnx.json"
-          done
-          ls -la model
-      - name: Seslendir
-        run: |
-          for v in fahrettin dfki fettah; do
-            mkdir -p out/$v
+          for v in tr-TR-EmelNeural tr-TR-AhmetNeural; do
+            d=out/$(echo $v | sed 's/tr-TR-//; s/Neural//' | tr 'A-Z' 'a-z'); mkdir -p $d
             for f in metin/*.txt; do
               n=$(basename "$f" .txt)
-              piper --model model/$v.onnx --output_file out/$v/$n.wav --length_scale 1.08 --sentence_silence 0.35 < "$f"
+              for i in 1 2 3; do edge-tts --voice $v --rate=+6% --pitch=+2Hz -f "$f" --write-media $d/$n.mp3 && break; sleep 5; done
             done
           done
           ls -laR out
