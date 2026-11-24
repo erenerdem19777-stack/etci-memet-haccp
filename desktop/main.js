@@ -11,9 +11,16 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   Menu.setApplicationMenu(null);
-  win.loadFile(path.join(__dirname, 'app', 'index.html'));
+  // Her açılışta web'deki en yeni sürüm açılır (güncelleme kurmaya gerek kalmaz); internet yoksa kurulumdaki kopya açılır.
+  const YEREL = path.join(__dirname, 'app', 'index.html');
+  const UZAK = 'https://erenerdem19777-stack.github.io/etci-memet-haccp/';
+  let yedek = false;
+  const yereliAc = () => { if (!yedek) { yedek = true; win.loadFile(YEREL); } };
+  win.webContents.on('did-fail-load', (e, kod, aciklama, url, anaCerceve) => { if (anaCerceve && String(url).startsWith('https:')) yereliAc(); });
+  win.loadURL(UZAK).catch(yereliAc);
   // Dış bağlantılar varsayılan tarayıcıda açılsın
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(UZAK) && !url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); } });
 }
 
 if (!app.requestSingleInstanceLock()) { app.quit(); }
