@@ -913,6 +913,14 @@ $('#sheet').onclick=e=>{ if(e.target.id==='sheet') closeSheet(); };
 
 /* ---------- yerel mod (APK / PC) ve aktarım ---------- */
 const cap = () => window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share ? window.Capacitor.Plugins : null;
+/* WhatsApp vb.den "Etçi Memet HACCP ile aç" veya "Paylaş" ile gelen aktarım dosyası */
+let gelenSon='';
+async function gelenDosya(url){ try{ if(!url||url===gelenSon||!/^(content|file):/i.test(url)) return; gelenSon=url;
+    const C=window.Capacitor; const r=await fetch(C.convertFileSrc?C.convertFileSrc(url):url); if(!r.ok) throw new Error('HTTP '+r.status); const txt=await r.text();
+    S.view='kayit'; S.xOpen=true; await importData(new File([txt],'gelen.json',{type:'application/json'})); toast(S.xMsg||'Dosya alındı'); render();
+  }catch(e){ console.warn(e); S.view='kayit'; S.xOpen=true; S.xMsg='Gelen dosya açılamadı. Kayıt → Veri aktarımı → Birleştir ile seçin.'; render(); } }
+function gelenDinle(){ const A=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App; if(!A) return;
+  try{ A.addListener('appUrlOpen',e=>gelenDosya(e&&e.url)); A.getLaunchUrl().then(r=>r&&r.url&&gelenDosya(r.url)).catch(()=>{}); }catch(e){} }
 try { S.cihaz = localStorage.getItem('em_cihaz') || ''; S.lastExport = localStorage.getItem('em_last_export') || ''; } catch(e) {}
 let IDB = null;
 function idbReq(r){ return new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
@@ -1104,7 +1112,7 @@ async function start(){
   render();
 }
 function kfTyping(){ const a=document.activeElement; if(S.view==='kf'&&a&&a.matches&&a.matches('#main input:not([type=date])')){ a.addEventListener('blur',()=>setTimeout(()=>{ if(!kfTyping()) render(); },50),{once:true}); return true; } return false; }
-render(); start();
+render(); Promise.resolve().then(start).catch(e=>console.warn(e)).finally(()=>setTimeout(gelenDinle,300));
 }
 </script>
 </body>
