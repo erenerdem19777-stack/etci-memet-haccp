@@ -133,7 +133,7 @@ const DF_BOLUM = ['Sıcaklık','Mal kabul','Üretim / CCP','Ekipman','Hijyen','S
 const S = {view:'bugun', day:today(), days:{}, ayar:{}, df:[], ek5:{}, live:false, canEdit:true, uid:null, ad:'', loadNote:''};
 let db = null, downloads = null, userCap = null, assets = null, sampleFn = null, aiOK = false;
 const LOCAL = {};
-const SURUM = '25.11.2026 15:07';
+const SURUM = '26.11.2026 16:51';
 const imgUrl = id => LOCAL[id] || (S.cloud ? fotoIste(id) : '') || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
 const thumbs = ids => (ids&&ids.length) ? `<div class="thumbs">${ids.filter(imgUrl).map(id=>`<button class="thb" data-img="${esc(id)}" aria-label="Belge fotoğrafı"><img src="${esc(imgUrl(id))}" alt="Belge fotoğrafı" loading="lazy"></button>`).join('')}</div>` : '';
 async function shrink(file){ try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',0.82)); }catch(e){ return file; } }
@@ -577,7 +577,7 @@ function vSubeGun(sb,merkez){ const k=S.day, st=subeDurum(sb,k), d=st.d; const P
   const dol=SB_DOLAP.map(x=>{ const e=[...vals(d.dolap)].reverse().find(y=>y.nokta===x.k); return `<div class="n">${esc(x.ad)}<small>${sbLim(x)}</small></div>${e?`<button class="stamp ${e.sonuc}" data-sbdol="${x.k}">${esc(e.deger)}°<small>${e.sonuc==='ok'?'uygun':'limit dışı'}</small></button>`:`<button class="stamp" data-sbdol="${x.k}">+<small>ölç</small></button>`}`; }).join('');
   return `<section class="sec">${merkez?'<button class="sm ghost" id="sbGeri">← Şubeler</button>':''}<h2 style="margin-top:8px">${esc(sb)} <small>${GUNAD[dow(k)]} ${trDate(k)} · ${st.done}/${st.it.length} bölüm${st.bad?` · <b style="color:var(--red)">${st.bad} uygunsuz</b>`:''}</small></h2>
    ${merkez?`<div class="row"><button class="pri" id="zNew">+ Ziyaret denetimi</button></div>`:''}</section>
-  <section class="sec"><h2>A) Merkezden mal kabul <small>burger ≤ −15 °C · füme/sosis ≤ +4 °C</small></h2><div class="list">${vals(d.kabul).map(e=>row(`${esc(e.saat)} · ${esc(e.urun)} · LOT ${esc(e.lot||'—')}`,`${esc(e.deger)} °C · ambalaj ${esc(e.ambalaj)} · SKT ${esc(e.skt)}${e.df?' · DF: '+esc(e.df):''} · ${esc(e.ad||'')}`,pill(e.sonuc),thumbs(e.foto))).join('')}<button class="sm" data-sbnew="kabul">+ Mal kabul</button></div></section>
+  <section class="sec"><h2>A) Merkezden mal kabul <small>burger ≤ −15 °C · füme/sosis ≤ +4 °C</small></h2><div class="list">${vals(d.kabul).map(e=>row(`${esc(e.saat)} · ${esc(e.urun)} · LOT ${esc(e.lot||'—')}`,`${esc(e.deger)} °C · ambalaj ${esc(e.ambalaj)} · SKT ${esc(e.skt)}${e.df?' · DF: '+esc(e.df):''} · ${esc(e.ad||'')}${e.duzeltmeler?' · ✎ '+esc(duzOzet(e)):''}`,pill(e.sonuc),thumbs(e.foto)+`<button class="sm" data-sbduz="${esc(e.id)}">Düzelt / belge ekle</button>`)).join('')}<button class="sm" data-sbnew="kabul">+ Mal kabul</button></div></section>
   <section class="sec"><h2>B) Dolap sıcaklıkları <small>günde 1, açılışta</small></h2><div class="card"><div class="tgrid" style="grid-template-columns:1fr auto">${dol}</div></div></section>
   <section class="sec"><h2>C) Pişirme – köfte merkez sıcaklığı <small>≥ 72 °C · günde en az 2 ölçüm</small></h2><div class="list">${vals(d.pisirme).map(e=>row(`${esc(e.saat)} · ${esc(e.urun)} · ${esc(e.deger)} °C${e.sicak!=null&&e.sicak!==''?' · sıcak tutma '+esc(e.sicak)+' °C':''}`,`${e.df?'DF: '+esc(e.df)+' · ':''}${esc(e.ad||'')}`,pill(e.sonuc))).join('')}<button class="sm pri" data-sbnew="pisirme">+ Pişirme ölçümü</button></div></section>
   <section class="sec"><h2>D) Kızartma yağı <small>≤ 180 °C · polar madde ≤ %25</small></h2><div class="list">${vals(d.yag).map(e=>row(`${esc(e.saat)} · ${esc(e.sicak)} °C${e.polar!=null&&e.polar!==''?' · polar %'+esc(e.polar):''}`,`${esc(e.degisti)}${e.df?' · DF: '+esc(e.df):''} · ${esc(e.ad||'')}`,pill(e.sonuc))).join('')}<button class="sm" data-sbnew="yag">+ Yağ kontrolü</button></div></section>
@@ -607,6 +607,7 @@ function bindSube(){ const m=$('#main'); const sb=isSube()?S.user.sube:S.subeSec
     if(t==='hijyen') openForm({title:'Günlük hijyen kontrolü – '+sb,fields:[{k:'items',l:'',t:'check',o:SB_HIJ},{k:'not',l:'Not (Hayır olanlar için ne yapıldı)',t:'area'}],
       calc:s=>{ const it=s.items||[]; if(it.filter(Boolean).length<SB_HIJ.length) return {ok:null,msg:`${it.filter(Boolean).length}/${SB_HIJ.length} cevaplandı`}; const h=it.filter(x=>x==='Hayır').length; return {ok:h===0,msg:h?h+' maddede uygunsuzluk':'Hepsi uygun'}; },
       save:async(s,r)=>{ if((s.items||[]).filter(Boolean).length<SB_HIJ.length) throw {code:'eksik'}; await putSube(sb,k,{hijyen:{items:s.items,not:s.not||'',df:s.df||'',ad:S.ad,saat:nowHM(),ts:Date.now(),sonuc:r.ok?'ok':'bad'}}); } }); });
+  m.querySelectorAll('[data-sbduz]').forEach(b=>b.onclick=()=>{ const e=(SD(sb,k).kabul||{})[b.dataset.sbduz]; if(e) duzelt('skabul',e,ne=>putSubeEntry(sb,k,'kabul',ne)); });
   const on=$('#sbOnay'); if(on) on.onclick=()=>putSube(sb,k,{onay:{ad:S.ad,saat:nowHM(),ts:Date.now()}}).catch(failWrite);
   const Pm=perOf('h',k), hk=sKey(sb)+'_H_'+Pm.from;
   const hSave=(qi,patch)=>{ const cur=((S.sube||{})[hk]||{}).ans||{}; const a={...(cur[qi]||{}),...patch,ad:S.ad,t:Date.now()}; serial('sube/'+hk,async()=>{ const ref=db.doc('sube/'+hk); if(!S.cloud&&!(S.sube||{})[hk]){ const s0=await ref.get(); if(!s0.exists) await ref.set({sube:sb,tarih:Pm.from,hafta:true}); } await ref.update({sube:sb,tarih:Pm.from,hafta:true,adU:S.ad,ans:{[qi]:a}}); }).catch(failWrite); };
@@ -810,6 +811,25 @@ function tipRows(tip,from,to){
     for(const e of list){ const dt=(tip==='dis'&&e.tarihR)||(tip==='per'&&e.tarihY)||k; if(dt>=from&&dt<=to) out.push({...e,_day:k,_dt:dt}); } }
   return out.sort((a,b)=>a._dt<b._dt?1:a._dt>b._dt?-1:(b.ts||0)-(a.ts||0)); }
 const isBad = row => row.some(c=>c&&typeof c==='object'&&c.r==='bad');
+/* ---------- sonradan düzeltme / eksik belge ekleme ---------- */
+const DUZ_ALAN={
+ kabul:[{k:'urun',l:'Ürün / karkas no / parça adı'},{k:'tedLot',l:'Tedarikçi LOT / irsaliye no'},{k:'kg',l:'Miktar (kg)',t:'num'},{k:'belge',l:'Damga + sağlık raporu / irsaliye',t:'seg',o:['Var','Yok']}],
+ uretim:[{k:'kg',l:'Miktar (kg)',t:'num'}],
+ sevkiyat:[{k:'miktar',l:'Miktar (koli / kg)'},{k:'plaka',l:'Araç plakası'}],
+ ekipman:[], sicaklik:[], per:[], dis:[{k:'firma',l:'Firma'},{k:'raporNo',l:'Rapor no'}],
+ skabul:[{k:'lot',l:'LOT / parti no'}]};
+const DUZ_LBL = k => { for(const L of Object.values(DUZ_ALAN)) for(const f of L) if(f.k===k) return f.l.split(' (')[0]; return k; };
+const duzOzet = e => (e.duzeltmeler||[]).map(d=>`${new Date(d.ts).toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'})} ${d.ad||''}: ${d.not||''}${Object.keys(d.degisen||{}).length?' ['+Object.entries(d.degisen).map(([k,[o,n]])=>DUZ_LBL(k)+': '+(o===''||o==null?'—':o)+' → '+(n===''||n==null?'—':n)).join(', ')+']':''}${d.foto?' (+'+d.foto+' foto)':''}`).join(' · ');
+function duzelt(tip,e,kaydet){ const F=DUZ_ALAN[tip]||[]; const init={foto:(e.foto||[]).map(id=>({id,url:imgUrl(id)}))}; F.forEach(f=>init[f.k]=e[f.k]??'');
+  openForm({title:'Düzelt / eksik belge ekle', note:'Eksik fotoğraf veya bilgi sonradan eklenebilir. Sıcaklık ölçümleri ve kabul/red kararı değiştirilemez; hatalıysa açıklamaya yazın. Her düzeltme tarih, saat ve adınızla kayda geçer.',
+    init, fields:[{k:'foto',l:'Fotoğraflar (eksik belgeyi ekleyin)',t:'foto'},...F,{k:'duzNot',l:'Ne eklendi / düzeltildi? (zorunlu)',t:'area',req:true}],
+    save:async s=>{ const deg={}; for(const f of F){ const nv=f.t==='num'?num(s[f.k]):String(s[f.k]??''); const ov=e[f.k]??''; if(String(nv??'')!==String(ov)) deg[f.k]=[ov,nv]; }
+      const fNew=fotoIds(s); const eklenen=fNew.filter(x=>!(e.foto||[]).includes(x)).length;
+      const temiz=Object.fromEntries(Object.entries(e).filter(([k])=>!k.startsWith('_')));
+      const ne={...temiz,foto:fNew,duzeltmeler:[...(e.duzeltmeler||[]),{ts:Date.now(),ad:S.ad||'',not:s.duzNot,degisen:deg,foto:eklenen}]};
+      for(const [k,[,nv]] of Object.entries(deg)) ne[k]=nv;
+      await kaydet(ne); toast('Düzeltme kaydedildi'); } }); }
+
 function vTip(){
   const tip=S.tip, T=TIPLER[tip]; if(!T){ S.view='kayit'; return vKayit(); }
   const [from,to,per]=tpRange(); const rows=tipRows(tip,from,to).map(e=>({e,v:T.row(e)})); const bad=rows.filter(x=>isBad(x.v)).length; const tp=S.tp||{p:'ay'};
@@ -822,10 +842,10 @@ function vTip(){
    ${tp.p==='ara'?`<div class="grid g2"><label class="f"><span>Başlangıç</span><input type="date" id="tpFrom" value="${esc(tp.from||addDays(S.day,-29))}"></label><label class="f"><span>Bitiş</span><input type="date" id="tpTo" value="${esc(tp.to||S.day)}"></label></div>`:''}
    <p class="muted" style="margin:8px 0">Dönem: <b>${esc(per)}</b></p>
    <div class="row"><button id="tpCsv">Excel’e aktar</button></div>${S.tpMsg?`<div class="aibox">${esc(S.tpMsg)}</div>`:''}</div></section>
-  <section class="sec"><div class="card scroll">${rows.length?`<table><thead><tr>${hasF?'<th>Foto</th>':''}${T.heads.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,300).map(x=>`<tr>${hasF?`<td>${thumbs(x.e.foto)}</td>`:''}${x.v.map(cell).join('')}</tr>`).join('')}</tbody></table>${rows.length>300?'<p class="muted">İlk 300 kayıt gösteriliyor; PDF ve Excel’de tamamı var.</p>':''}`:'<p class="muted">Bu dönemde kayıt yok.</p>'}</div></section>`;
+  <section class="sec"><div class="card scroll">${rows.length?`<table><thead><tr>${DUZ_ALAN[tip]?'<th></th>':''}${hasF?'<th>Foto</th>':''}${T.heads.map(h=>`<th>${esc(h)}</th>`).join('')}${rows.some(x=>x.e.duzeltmeler)?'<th>Sonradan düzeltme</th>':''}</tr></thead><tbody>${rows.slice(0,300).map(x=>`<tr>${DUZ_ALAN[tip]?`<td><button class="sm" data-duz="${esc(x.e._day)}|${esc(x.e.id)}">Düzelt / belge ekle</button></td>`:''}${hasF?`<td>${thumbs(x.e.foto)}</td>`:''}${x.v.map(cell).join('')}${rows.some(y=>y.e.duzeltmeler)?`<td>${esc(duzOzet(x.e))}</td>`:''}</tr>`).join('')}</tbody></table>${rows.length>300?'<p class="muted">İlk 300 kayıt gösteriliyor; PDF ve Excel’de tamamı var.</p>':''}`:'<p class="muted">Bu dönemde kayıt yok.</p>'}</div></section>`;
 }
 async function tipExport(kind){
-  const tip=S.tip, T=TIPLER[tip]; const [from,to,per]=tpRange(); const rows=tipRows(tip,from,to).reverse().map(e=>T.row(e));
+  const tip=S.tip, T0=TIPLER[tip]; const [from,to,per]=tpRange(); const ents=tipRows(tip,from,to).reverse(); const dz=ents.some(e=>e.duzeltmeler); const T=dz?{...T0,heads:[...T0.heads,'Sonradan düzeltme']}:T0; const rows=ents.map(e=>dz?[...T0.row(e),duzOzet(e)]:T0.row(e));
   const fbase=`EtciMemet_${T.ad.split(' (')[0].replace(/[^A-Za-z0-9ğüşöçıİĞÜŞÖÇ]+/g,'_')}_${per.replace(/[^A-Za-z0-9ğüşöçıİĞÜŞÖÇ]+/g,'_')}`;
   if(kind==='csv'){ const txt=c=>c&&typeof c==='object'&&'r' in c?(c.r==='ok'?'Uygun':c.r==='bad'?'Uygun değil':c.r==='wait'?'Bekliyor':''):String(c??'');
     const csv='﻿'+[T.heads,...rows.map(r=>r.map(txt))].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\r\n');
@@ -1043,6 +1063,7 @@ function bindCommon(){
   const tt1=$('#tpTo'); if(tt1) tt1.onchange=()=>{ S.tp={...S.tp,to:tt1.value}; render(); };
   const tpP=$('#tpPdf'); if(tpP) tpP.onclick=()=>tipExport('pdf');
   const tpC=$('#tpCsv'); if(tpC) tpC.onclick=()=>tipExport('csv');
+  m.querySelectorAll('[data-duz]').forEach(b=>b.onclick=()=>{ const [day,id]=b.dataset.duz.split('|'); const tip=S.tip; const e=(D(day)[tip]||{})[id]; if(!e) return; duzelt(tip,e,ne=>putEntry(day,tip,ne)); });
   m.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>openPlan(b.dataset.plan));
   ['#goPlan','#goPlan2'].forEach(id=>{ const g=$(id); if(g) g.onclick=()=>{ S.view='plan'; render(); window.scrollTo(0,0); }; });
   m.querySelectorAll('[data-temp]').forEach(b=>b.onclick=()=>{ const [n,vk]=b.dataset.temp.split('|'); FORMS.sicaklik({nokta:n,vakit:vk}); });
