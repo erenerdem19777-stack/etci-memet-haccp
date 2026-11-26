@@ -133,7 +133,7 @@ const DF_BOLUM = ['Sıcaklık','Mal kabul','Üretim / CCP','Ekipman','Hijyen','S
 const S = {view:'bugun', day:today(), days:{}, ayar:{}, df:[], ek5:{}, live:false, canEdit:true, uid:null, ad:'', loadNote:''};
 let db = null, downloads = null, userCap = null, assets = null, sampleFn = null, aiOK = false;
 const LOCAL = {};
-const SURUM = '26.11.2026 16:51';
+const SURUM = '26.11.2026 17:05';
 const imgUrl = id => LOCAL[id] || (S.cloud ? fotoIste(id) : '') || (/^[A-Za-z0-9_-]{8,64}$/.test(id) ? '/_blob/'+id : '');
 const thumbs = ids => (ids&&ids.length) ? `<div class="thumbs">${ids.filter(imgUrl).map(id=>`<button class="thb" data-img="${esc(id)}" aria-label="Belge fotoğrafı"><img src="${esc(imgUrl(id))}" alt="Belge fotoğrafı" loading="lazy"></button>`).join('')}</div>` : '';
 async function shrink(file){ try{ const bmp=await createImageBitmap(file); const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)); const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k); c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',0.82)); }catch(e){ return file; } }
@@ -669,7 +669,8 @@ function perOf(p,k){ const y=+k.slice(0,4), m=+k.slice(5,7);
   const label=p==='a'?AYAD[sm-1]+' '+y:p==='c3'?`${(sm+2)/3}. çeyrek ${y} · ${AYAD[sm-1]} – ${AYAD[em-1]}`:p==='c6'?`${sm===1?1:2}. yarıyıl ${y} · ${AYAD[sm-1]} – ${AYAD[em-1]}`:y+' yılı';
   return {p,from,to,label}; }
 function firstWd(k){ for(let i=0;i<7;i++){ const x=addDays(k,i); if(dow(x)===hGun()) return x; } return k; }
-function plannedOf(t,P){ if(P.p==='h') return addDays(P.from,hGun()-1); const q=KQ[t.id]||{}; if(P.p==='y'&&q.ay) return firstWd(P.from.slice(0,4)+'-'+p2(q.ay)+'-01'); return firstWd(P.from); }
+function plannedOf(t,P){ if(P.p==='h') return addDays(P.from,hGun()-1); const q=KQ[t.id]||{}; if(P.p==='y'&&q.ay){ const y=+P.from.slice(0,4); return `${y}-${p2(q.ay)}-${p2(new Date(y,q.ay,0).getDate())}`; } return P.to; }
+const isYon = () => S.user ? S.user.rol==='yonetici' : !!S.canEdit;
 function kfItems(p){ return PLAN.filter(t=>KP_S[t.s]===p&&KQ[t.id]); }
 function kfId(P){ return P.p+'_'+P.from; }
 function kfGet(P){ const id=kfId(P); return (S.kfDraft&&S.kfDraft.id===id)?S.kfDraft:((D(P.from).kf||{})[id]||null); }
@@ -690,7 +691,7 @@ function secState(t,P,e){ const qs=KQ[t.id].q; const as=qs.map((q,i)=>ansOf(e,t,
   const done=n===qs.length||!!old; const plan=plannedOf(t,P); const s=(e&&e.sec&&e.sec[t.id])||{};
   return {t,qs,as,n,done,old,plan,s,bad:as.some(a=>a&&a.a==='UD')||(old&&old.sonuc==='bad')}; }
 function kfState(p,k){ const P=perOf(p,k), e=kfGet(P); const secs=kfItems(p).map(t=>secState(t,P,e)); if(p==='y') secs.sort((x,y)=>x.plan<y.plan?-1:x.plan>y.plan?1:0); const ref=k;
-  const due=secs.filter(x=>!x.done&&x.plan<=ref), today_=secs.filter(x=>!x.done&&x.plan===ref);
+  const bas=firstDay(); const due=secs.filter(x=>!x.done&&x.plan<=ref&&x.plan>=bas), today_=secs.filter(x=>!x.done&&x.plan===ref);
   return {P,e,secs,done:secs.filter(x=>x.done).length,due,today:today_,next:secs.filter(x=>!x.done&&x.plan>ref).map(x=>x.plan).sort()[0]}; }
 function firstDay(){ const ks=Object.keys(S.days).sort(); return ks[0]||today(); }
 function kfDue(k){ const out=[]; for(const p of ['h','a','c3','c6','y']){ const st=kfState(p,k); if(st.due.length) out.push({p,st,late:false});
@@ -700,18 +701,23 @@ function gunState(k){ const d=D(k), ek=vals(d.ekipman); const it=[['Sıcaklık (
 function kfCards(k){ const g=gunState(k);
   const card=(p,title,sub,pill_)=>`<button class="card kfc" data-kf="${p}" style="text-align:left;display:flex;flex-direction:column;gap:6px;min-height:104px"><b style="font:700 18px 'Barlow Semi Condensed',system-ui,sans-serif">${title}</b><span class="muted" style="font-size:13px">${sub}</span><span>${pill_}</span></button>`;
   let h=card('g','Günlük kayıt',trDate(k)+' · '+GUNAD[dow(k)],g.done===g.it.length?'<span class="pill ok">Tamamlandı</span>':`<span class="pill ${k<today()?'bad':'wait'}">${g.done}/${g.it.length} bölüm</span>`);
+  const sonra=[];
   for(const p of ['h','a','c3','c6','y']){ const st=kfState(p,k); const N=st.secs.length;
+    if(!st.due.length&&!S.kfHepsi){ if(st.next) sonra.push([st.next,KP[p]]); continue; }
     const pl=st.done===N?'<span class="pill ok">Tamamlandı</span>':st.today.length?`<span class="pill bad">Bugün: ${st.today.length} kontrol</span>`:st.due.length?`<span class="pill bad">${st.due.length} zamanı geldi</span>`:`<span class="pill wait">${st.done}/${N} · sıradaki ${trDate(st.next)}</span>`;
     h+=card(p,KP[p]+' kayıt',st.P.label,pl); }
-  return `<div class="grid g2 kfgrid">${h}</div>`; }
+  sonra.sort((a,b)=>a[0]<b[0]?-1:1);
+  const alt=(!S.kfHepsi&&sonra.length?`<p class="muted" style="margin-top:8px">Bugün başka dönemsel kontrol yok. Sıradaki: ${sonra.slice(0,3).map(([d,n])=>`<b>${n}</b> – ${GUNAD[dow(d)]} ${trDate(d)}`).join(' · ')}</p>`:'')
+    +(isYon()?`<button class="sm ghost" id="kfHepsi" style="margin-top:6px">${S.kfHepsi?'Yalnız bugün yapılacakları göster':'Bütün dönemsel formları göster (yönetici)'}</button>`:'');
+  return `<div class="grid g2 kfgrid">${h}</div>${alt}`; }
 function segAns(key,a,dis){ return `<div class="seg kfseg" data-kq="${key}">${[['U','Uygun'],['UD','Uygun değil'],['NA','U.D.']].map(([v,l])=>`<button class="${a===v?'on':''} ${v==='UD'&&a===v?'badon':''}" data-a="${v}" ${dis?'disabled':''} title="${v==='NA'?'Uygulanamaz':l}">${l}</button>`).join('')}</div>`; }
 function vKf(){ const p=S.kfP||'g'; if(p==='g') return vGunluk();
-  const st=kfState(p,S.day), P=st.P, e=st.e;
+  const st0=kfState(p,S.day), P=st0.P, e=st0.e; const st=isYon()?st0:{...st0,secs:st0.secs.filter(x=>x.done||x.plan<=S.day)}; st.done=st.secs.filter(x=>x.done).length;
   const badge=x=>x.done?(x.bad?'<span class="pill bad">Tamam · uygunsuz var</span>':'<span class="pill ok">Tamamlandı</span>'):x.plan===S.day?'<span class="pill bad">Bugün</span>':x.plan<S.day?`<span class="pill bad">Zamanı geldi</span>`:`<span class="pill wait">${dayDiff(S.day,x.plan)} gün kaldı</span>`;
   return `<section class="sec"><button class="sm ghost" data-go="kayit">← Kayıt</button>
    <h2 style="margin-top:8px">${KP[p]} HACCP kontrol formu <small>${st.done}/${st.secs.length} kontrol tamam</small></h2>
    <div class="card"><div class="row" style="justify-content:space-between;align-items:center"><button class="sm" id="kfPrev">‹ Önceki</button><b style="text-align:center">${esc(P.label)}</b><button class="sm" id="kfNext">Sonraki ›</button></div>
-   <p class="muted" style="margin:8px 0">Planlanan tarihler HACCP planındaki sıklığa göre kendiliğinden hesaplanır${p==='h'?` (haftalık kontrol günü: <b>${GUNAD[hGun()]}</b>, Ayarlar’dan değişir)`:p==='y'?' (her kontrol yıllık takvimdeki ayın ilk '+GUNAD[hGun()]+' günü)':` (dönemin ilk ${GUNAD[hGun()]} günü)`}. Her soruyu işaretleyin; cevaplar elektronik olarak kendiliğinden kaydedilir. İmza gereken tutanaklar için ilgili kontrolün altında “İmza tutanağı PDF” düğmesi vardır. “Uygun değil” işaretlenen soru için uygunsuzluk kaydı açılır.</p>
+   <p class="muted" style="margin:8px 0">Planlanan tarihler HACCP planındaki sıklığa göre kendiliğinden hesaplanır${p==='h'?` (her hafta <b>${GUNAD[hGun()]}</b>; Ayarlar’dan değişir)`:p==='y'?' (her kontrol yıllık takvimdeki ayın son günü)':' (dönemin son günü)'}. Kontrol, planlanan günü gelince ekrana düşer${isYon()?'':'; henüz günü gelmeyenler gösterilmez'}. Her soruyu işaretleyin; cevaplar elektronik olarak kendiliğinden kaydedilir. İmza gereken tutanaklar için ilgili kontrolün altında “İmza tutanağı PDF” düğmesi vardır. “Uygun değil” işaretlenen soru için uygunsuzluk kaydı açılır.</p>
    <div class="row">${(()=>{ const sv=(D(P.from).kf||{})[kfId(P)]; return `<span class="muted" id="kfSaved">${sv&&sv.tsU?'Son kayıt: '+esc(sv.adU||sv.ad||'')+' '+new Date(sv.tsU).toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'}):'Henüz cevap yok'}</span>`; })()}</div>${S.kfMsg&&!S.kfMsgT?`<div class="aibox">${esc(S.kfMsg)}</div>`:''}</div></section>
   ${st.secs.map((x,si)=>`<section class="sec"><div class="card kfsec ${x.done?'':x.plan<=S.day?'due':''}">
     <div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px"><div><b>${si+1}. ${esc(x.t.ad)}</b><div class="muted" style="font-size:13px">Planlanan: ${GUNAD[dow(x.plan)]} ${trDate(x.plan)}${x.s.tarih?' · yapıldı: '+trDate(x.s.tarih)+(x.s.ad?' · '+esc(x.s.ad):''):''}</div></div>${badge(x)}</div>
@@ -766,6 +772,7 @@ function bindKf(){ const m=$('#main');
     if(v!=null&&(q.min!=null||q.max!=null)) a.a=((q.min==null||v>=q.min)&&(q.max==null||v<=q.max))?'U':'UD';
     kfTouch(tid); kfSave(true); setTimeout(render,0); if(a.a==='UD') toast('Limit dışı: '+v+' '+q.v); });
   m.querySelectorAll('[data-ks]').forEach(inp=>inp.onchange=()=>{ const [tid,f]=inp.dataset.ks.split('|'); const {dr}=kfDraft(); kfTouch(tid); dr.sec[tid][f]=inp.value; kfSave(); });
+  const kh=$('#kfHepsi'); if(kh) kh.onclick=()=>{ S.kfHepsi=!S.kfHepsi; render(); };
   m.querySelectorAll('[data-kf]').forEach(b=>b.onclick=()=>{ S.kfP=b.dataset.kf; if(b.dataset.kfd) S.day=b.dataset.kfd; S.kfDraft=null; S.kfMsg=''; S.view='kf'; render(); window.scrollTo(0,0); });
   const hg=$('#hgSel'); if(hg) hg.onchange=()=>saveAyar({haftaGun:+hg.value});
 }
@@ -872,7 +879,7 @@ function vAyar(){
   <section class="sec"><h2>Şubeler <small>${sb.length}</small></h2><div class="card">${listEd('subeler',sb,'Şube adı')}</div></section>
   <section class="sec"><h2>Tedarikçiler</h2><div class="card">${listEd('tedarikciler',td,'Firma adı')}</div></section>
   <section class="sec"><h2>Burger çeşitleri</h2><div class="card">${listEd('burgerler',bg,'Burger 150 g')}</div></section>
-  <section class="sec"><h2>Kontrol takvimi</h2><div class="card"><label class="f"><span>Haftalık kontrol günü</span><select id="hgSel" ${S.canEdit?'':'disabled'}>${[1,2,3,4,5,6,7].map(i=>`<option value="${i}" ${hGun()===i?'selected':''}>${GUNAD[i]}</option>`).join('')}</select></label><p class="muted">Haftalık formların planlanan günü bu gündür; aylık, 3 aylık ve 6 aylık formlar dönemin ilk bu gününe, yıllık kontroller takvimdeki ayın ilk bu gününe konur.</p></div></section>
+  <section class="sec"><h2>Kontrol takvimi</h2><div class="card"><label class="f"><span>Haftalık kontrol günü</span><select id="hgSel" ${S.canEdit?'':'disabled'}>${[1,2,3,4,5,6,7].map(i=>`<option value="${i}" ${hGun()===i?'selected':''}>${GUNAD[i]}</option>`).join('')}</select></label><p class="muted">Haftalık formlar her hafta bu gün; aylık formlar ayın son günü; 3 aylık ve 6 aylık formlar dönemin son günü; yıllık kontroller takvimdeki ayın son günü ekrana düşer (yönetimin gözden geçirmesi 31 Aralık).</p></div></section>
   <section class="sec"><h2>Kritik limitler</h2><div class="card">${Object.keys(DEF_LIM).map(k=>`<label class="f"><span>${esc(LIM_AD[k])}</span><span class="numw"><button type="button" class="pm" aria-label="Eksi / artı" ${S.canEdit?'':'disabled'}>−/+</button><input type="text" inputmode="decimal" autocomplete="off" data-lim="${k}" value="${L(k)}" ${S.canEdit?'':'disabled'}></span></label>`).join('')}<p class="muted">Limitler HACCP El Kitabı Rev.04 Bölüm 10–12 ile aynıdır. Değiştirmeden önce HACCP ekibi kararı gerekir.</p></div></section>
   <section class="sec"><h2>Kullanım</h2><div class="card muted">${S.mode==='local'?'Bu sürüm verileri yalnız bu cihazda saklar; internet ve hesap gerekmez. Telefonda girilen kayıtları her gün Kayıt → Veri aktarımı → “Gönder” ile PC’ye yollayın, PC’de “Birleştir” ile alın; PC’den de aynı yolla telefona gönderebilirsiniz. Şube, tedarikçi ve personel listelerini PC’de düzenleyip aynı yolla telefonlara gönderin. Uygulamayı silmek bu cihazdaki kayıtları da siler; düzenli aktarım yedek yerine geçer.':`Her personel bu sayfayı kendi telefonunda, kendi Claude hesabıyla açar. Kayıt yapabilmeleri için sayfa sahibinin onları <b>Katkıda bulunan (Contributor)</b> olarak paylaşması gerekir; Sorumlu Yönetici <b>Düzenleyici (Editor)</b> olur. Telefonda tarayıcı menüsünden “Ana ekrana ekle” ile uygulama gibi açılır.<br><br><b>Fotoğraf:</b> ${assets?'Belge fotoğrafları kayda eklenip saklanır.':'Bu hesapta fotoğraf saklama yetkisi yok; fotoğraf yalnız okumak için kullanılır.'} <b>Fotoğraftan doldurma:</b> ${aiOK?'açık – ilk kullanımda Claude izin ister.':'bu görünümde kullanılamıyor.'}`}</div></section>`;
 }
